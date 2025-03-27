@@ -1,0 +1,6 @@
+{
+  "steps": [{
+      "name": "Lint commit message",
+      "command": "poetry run gitlint --msg-filename $1"
+  }]
+}

@@ -1,0 +1,21 @@
+{
+    "recommendations": [
+        "britesnow.vscode-toggle-quotes",
+        "matangover.mypy",
+        "charliermarsh.ruff",
+        "ms-python.black-formatter",
+        "njqdev.vscode-python-typehint",
+        "eamodio.gitlens",
+        "davidanson.vscode-markdownlint",
+        "redhat.vscode-yaml",
+        "bungcip.better-toml",
+        "emeraldwalk.runonsave",
+        "dongli.python-preview",
+        "frhtylcn.pythonsnippets",
+        "LittleFoxTeam.vscode-python-test-adapter",
+        "ryanluker.vscode-coverage-gutters",
+        "shd101wyy.markdown-preview-enhanced",
+        "eriklynd.json-tools",
+        "ms-python.pylint",
+    ]
+}
