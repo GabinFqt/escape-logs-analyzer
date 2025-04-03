@@ -1,37 +1,56 @@
-# pytemplate ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/Escape-Technologies/python-project-template) [![CI](https://github.com/Escape-Technologies/python-project-template/actions/workflows/ci.yaml/badge.svg)](https://github.com/Escape-Technologies/python-project-template/actions/workflows/ci.yaml) [![CD](https://github.com/Escape-Technologies/python-project-template/actions/workflows/cd.yaml/badge.svg)](https://github.com/Escape-Technologies/python-project-template/actions/workflows/cd.yaml)
+# Escape Logs Analyzer
 
-Run `make`
+A command-line tool for analyzing and filtering log files from Escape.
 
-Source your `.venv`: `source .venv/bin/activate`
+## Installation
 
-If you wish, rename all `app` (including folder names) by the name of your project.
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/escape-logs-analyzer.git
+cd escape-logs-analyzer
 
-Make sure you can run the `app-cli` command that should display "Hello World!"
-
-______________________________________________________________________
-
-## Environment
-
-In order to use the workflows, you need to have the following environment variables set [Github Environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment):
-
-### Code coverage
-
-`CODECOV_TOKEN`: The token for the [Codecov](https://codecov.io) service. This is used to upload the coverage report.
-
-### PyPi
-
-`PYPI_TOKEN`: The token used to push your package on Pypi.
-
-### DockerHub
-
-`DOCKERHUB_USERNAME`: Your DockerHub username.
-`DOCKERHUB_TOKEN`: A token used to log on DockerHub.
-
-`DOCKERHUB_REPO`: The repository where your image will be published.
-
-### Bump all dependencies
-
-```python
-poetry self add poetry-plugin-sembump
-poetry bump -D
+# Install dependencies
+make install
 ```
+
+## Usage
+
+```bash
+# Start the analyzer with a specific log file
+make run file=your_log_file.zip
+
+# Or directly with Python
+python -m app.main your_log_file.zip
+```
+
+## Available Commands
+
+- `list [filters]`: List all requests with their details
+- `info <number/filename> [filters] [--no-body]`: Show information about a specific file
+  - You can display multiple files: `info 1 2 3 4`
+  - Use `--no-body` to hide request and response bodies
+- `count [filters]`: Count the number of requests
+- `summary [full] [filters]`: Show a summary of all endpoints
+- `params <number/filename> [filters]`: Show request parameters for a specific file
+- `help`: Show this help message
+- `quit` or `q`: Exit the shell
+
+## Filters
+
+Filters can be specified as key=value pairs:
+
+- `method=GET`: Filter by HTTP method
+- `status_code=200`: Filter by status code
+- `content_type=application/json`: Filter by content type
+- `requester=oracle`: Filter by requester
+- `size=100-1000`: Filter by response size range
+- `url=api/users`: Filter by URL pattern
+- `operation=login`: Filter by operation name
+- `coverage=covered`: Filter by coverage status
+- `endpoint=/users`: Filter by endpoint name
+
+You can invert any filter by adding a `!` prefix:
+
+- `method=!GET`: All methods except GET
+- `status_code=!200`: All status codes except 200
+- `content_type=!application/json`: All content types except application/json
