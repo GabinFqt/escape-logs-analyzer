@@ -29,9 +29,6 @@ python -m app.main your_log_file.zip
 - `info <number/filename> [filters] [--no-body]`: Show information about a specific file
   - You can display multiple files: `info 1 2 3 4`
   - Use `--no-body` to hide request and response bodies
-- `count [filters]`: Count the number of requests
-- `summary [full] [filters]`: Show a summary of all endpoints
-- `params <number/filename> [filters]`: Show request parameters for a specific file
 - `help`: Show this help message
 - `quit` or `q`: Exit the shell
 
