@@ -19,6 +19,8 @@ app-cli = 'app:main'
 [tool.poetry.dependencies]
 python = ">=3.10,<=3.14"
 pydantic = "^2.10.5"
+rich = "^13.9.4"
+click = "^8.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = { version = "^23.12.1", extras = ["jupyter"] }
@@ -126,7 +128,7 @@ select = [
     "TD007", # flake8-missing-space-after-todo-colon        https://beta.ruff.rs/docs/rules/#flake8-todos-td
 ]
 exclude = [".venv", "poetry.lock", "__pycache__", "pyproject.toml"]
-ignore = ["E999", "UP015", "S311"]
+ignore = ["UP015", "S311"]
 line-length = 160
 target-version = "py311"
 ignore-init-module-imports = true
@@ -183,6 +185,7 @@ warn_unused_ignores = true
 warn_unused_configs = true
 namespace_packages = true
 pretty = true
+ignore_missing_imports = true
 files = "app, tests"
 exclude = [
     ".venv",
@@ -195,31 +198,3 @@ exclude = [
     "node_modules",
     "__pycache__",
 ]
-
-[[tool.mypy.overrides]]
-module = "opentelemetry.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "networkx.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "boto3.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "botocore.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "confluent_kafka.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "aenum.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "pydash.*"
-ignore_missing_imports = true
