@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from app.commands import process_zip, start_shell
+from app.processor import process_zip, start_shell
 
 
 @click.group()
