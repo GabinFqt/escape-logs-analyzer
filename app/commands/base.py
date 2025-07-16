@@ -7,6 +7,12 @@ from rich.panel import Panel
 from app.models import FileIndex, LogsData
 from app.utils import console, extract_endpoints
 
+from .count import count_files
+from .info import show_info
+from .list import list_requests
+from .params import show_params
+from .summary import show_summary
+
 
 class LogShell(cmd.Cmd):
     """Interactive shell for log analysis."""
@@ -35,35 +41,25 @@ class LogShell(cmd.Cmd):
 
     def do_count(self, arg: str) -> None:
         """Count the number of JSON files in the logs."""
-        from .count import CountCommand
-
-        CountCommand.execute(self.logs_data, arg)
+        count_files(self.logs_data, arg)
 
     def do_list(self, arg: str) -> None:
         """List all requests with their details."""
-        from .list import ListCommand
-
-        ListCommand.execute(self.logs_data, self.file_index, arg)
+        list_requests(self.logs_data, self.file_index, arg)
 
     def do_summary(self, arg: str) -> None:
         """Show a summary of all endpoints grouped by name."""
-        from .summary import SummaryCommand
-
-        SummaryCommand.execute(
+        show_summary(
             self.logs_data, self.endpoints_data, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH
         )
 
     def do_info(self, arg: str) -> None:
         """Show information about specific JSON files."""
-        from .info import InfoCommand
-
-        InfoCommand.execute(self.logs_data, self.file_index, self.index_file, arg)
+        show_info(self.logs_data, self.file_index, self.index_file, arg)
 
     def do_params(self, arg: str) -> None:
         """Show request parameters for a specific file."""
-        from .params import ParamsCommand
-
-        ParamsCommand.execute(self.logs_data, self.file_index, self.index_file, arg)
+        show_params(self.logs_data, self.file_index, self.index_file, arg)
 
     def do_quit(self, _: str) -> bool:
         """Exit the shell."""

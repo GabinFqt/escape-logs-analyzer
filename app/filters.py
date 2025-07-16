@@ -7,9 +7,7 @@ from app.utils import clean_content_type
 
 def _is_inverted_filter(filter_value: str) -> tuple[bool, str]:
     """Check if a filter is inverted (starts with !) and return the actual value."""
-    if filter_value.startswith('!'):
-        return True, filter_value[1:]
-    return False, filter_value
+    return (True, filter_value[1:]) if filter_value.startswith('!') else (False, filter_value)
 
 
 def _apply_filter_with_inversion(filter_func: Callable, data: ExchangeData, filter_value: str) -> bool:
@@ -31,8 +29,7 @@ def _filter_by_url(data: ExchangeData, url_filter: str) -> bool:
 
 def _filter_by_status_code(data: ExchangeData, status_filter: str) -> bool:
     """Filter by status code."""
-    status_code = str(data.inferredStatusCode)
-    return status_code == status_filter
+    return str(data.inferredStatusCode) == status_filter
 
 
 def _filter_by_coverage(data: ExchangeData, coverage_filter: str) -> bool:

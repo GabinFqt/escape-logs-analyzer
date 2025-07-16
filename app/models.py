@@ -53,17 +53,13 @@ class ExchangeData(BaseModel):
     class Config:
         """Pydantic configuration."""
 
-        # Allow extra fields that might be present in the data
         extra = 'allow'
-        # Use field names as they appear in the JSON
         populate_by_name = True
 
 
 class LogsData(BaseModel):
     """Model for the complete logs data structure."""
 
-    # Dictionary mapping filename to ExchangeData
-    # This is a wrapper around Dict[str, ExchangeData] for better typing
     data: dict[str, ExchangeData]
 
     @classmethod
@@ -153,48 +149,6 @@ class EndpointsData(BaseModel):
     def count_endpoints(self) -> int:
         """Count the number of endpoints."""
         return len(self.endpoints)
-
-    def to_dict(self) -> dict[str, dict[str, Any]]:
-        """Convert to dictionary for backward compatibility."""
-        return {name: info.model_dump() for name, info in self.endpoints.items()}
-
-
-class UrlParameters(BaseModel):
-    """Model for URL parameters."""
-
-    base_url: str
-    parameters: dict[str, str]
-
-
-class RequestParameters(BaseModel):
-    """Model for request parameters."""
-
-    url_params: list[tuple[str, str]]
-    headers: list[tuple[str, str]]
-    body_params: list[tuple[str, str]]
-
-    def all_parameters(self) -> list[tuple[str, str]]:
-        """Get all parameters combined."""
-        return self.url_params + self.headers + self.body_params
-
-
-class RequestInfo(BaseModel):
-    """Model for request information."""
-
-    url: str
-    method: str
-    requester: str
-    url_parameters: UrlParameters | None = None
-    headers: list[Header] | None = None
-
-
-class ResponseInfo(BaseModel):
-    """Model for response information."""
-
-    status_code: int
-    status_description: str
-    duration: float | None = None
-    headers: list[Header] | None = None
 
 
 class FileIndex(BaseModel):
