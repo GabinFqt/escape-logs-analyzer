@@ -1,5 +1,6 @@
 import re
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from app.utils import clean_content_type
 
@@ -11,49 +12,49 @@ def _is_inverted_filter(filter_value: str) -> tuple[bool, str]:
     return False, filter_value
 
 
-def _apply_filter_with_inversion(filter_func: Callable, data: Dict[str, Any], filter_value: str) -> bool:
+def _apply_filter_with_inversion(filter_func: Callable, data: dict[str, Any], filter_value: str) -> bool:
     """Apply a filter function with support for inverted filters."""
     is_inverted, actual_value = _is_inverted_filter(filter_value)
     result = filter_func(data, actual_value)
     return not result if is_inverted else result
 
 
-def _filter_by_method(data: Dict[str, Any], method_filter: str) -> bool:
+def _filter_by_method(data: dict[str, Any], method_filter: str) -> bool:
     """Filter by HTTP method."""
     return data.get('method', '').upper() == method_filter.upper()
 
 
-def _filter_by_url(data: Dict[str, Any], url_filter: str) -> bool:
+def _filter_by_url(data: dict[str, Any], url_filter: str) -> bool:
     """Filter by URL pattern."""
     url = data.get('url', '')
     return bool(re.search(url_filter, url))
 
 
-def _filter_by_operation(data: Dict[str, Any], operation_filter: str) -> bool:
+def _filter_by_operation(data: dict[str, Any], operation_filter: str) -> bool:
     """Filter by operation name."""
     operation = data.get('operationName', '')
     return operation_filter in operation
 
 
-def _filter_by_status_code(data: Dict[str, Any], status_filter: str) -> bool:
+def _filter_by_status_code(data: dict[str, Any], status_filter: str) -> bool:
     """Filter by status code."""
     status_code = str(data.get('inferredStatusCode', ''))
     return status_code == status_filter
 
 
-def _filter_by_scalar(data: Dict[str, Any], scalar_filter: str) -> bool:
+def _filter_by_scalar(data: dict[str, Any], scalar_filter: str) -> bool:
     """Filter by scalar type."""
     scalar = data.get('inferredScalarType', '')
     return scalar_filter in scalar
 
 
-def _filter_by_coverage(data: Dict[str, Any], coverage_filter: str) -> bool:
+def _filter_by_coverage(data: dict[str, Any], coverage_filter: str) -> bool:
     """Filter by coverage."""
     coverage = data.get('coverage', '')
     return coverage_filter in coverage
 
 
-def _filter_by_size(data: Dict[str, Any], size_filter: str) -> bool:
+def _filter_by_size(data: dict[str, Any], size_filter: str) -> bool:
     """Filter by response size range."""
     try:
         min_size, max_size = map(int, size_filter.split('-'))
@@ -63,7 +64,7 @@ def _filter_by_size(data: Dict[str, Any], size_filter: str) -> bool:
         return True  # Invalid size format, ignore this filter
 
 
-def _filter_by_content_type(data: Dict[str, Any], content_type_filter: str) -> bool:
+def _filter_by_content_type(data: dict[str, Any], content_type_filter: str) -> bool:
     """Filter by content type."""
     content_type = 'unknown'
     response_headers = data.get('responseHeaders', [])
@@ -77,13 +78,13 @@ def _filter_by_content_type(data: Dict[str, Any], content_type_filter: str) -> b
     return content_type_filter in content_type
 
 
-def _filter_by_requester(data: Dict[str, Any], requester_filter: str) -> bool:
+def _filter_by_requester(data: dict[str, Any], requester_filter: str) -> bool:
     """Filter by requester."""
     requester = data.get('requester', '')
     return requester_filter in requester
 
 
-def _filter_by_name(data: Dict[str, Any], name_filter: str) -> bool:
+def _filter_by_name(data: dict[str, Any], name_filter: str) -> bool:
     """Filter by endpoint name."""
     # Get the name field from the request body or use endpoint as fallback
     name = 'unknown'
@@ -106,7 +107,7 @@ def _filter_by_name(data: Dict[str, Any], name_filter: str) -> bool:
     return name_filter in name
 
 
-def apply_filters(data: Dict[str, Any], filters: Dict[str, str]) -> bool:
+def apply_filters(data: dict[str, Any], filters: dict[str, str]) -> bool:
     """Apply filters to a log entry and return True if it matches all filters."""
     if not filters:
         return True

@@ -1,6 +1,6 @@
 import json
 import shlex
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -90,7 +90,7 @@ def extract_path_from_url(url: str) -> str:
         return url
 
 
-def get_size_range(sizes: List[int]) -> str:
+def get_size_range(sizes: list[int]) -> str:
     """Get a human-readable size range."""
     if not sizes:
         return 'N/A'
@@ -121,9 +121,9 @@ def get_status_description(status_code: str) -> str:
     return HTTP_STATUS_DESCRIPTIONS.get(status_code, 'Unknown')
 
 
-def parse_filters(arg: str) -> Dict[str, str]:
+def parse_filters(arg: str) -> dict[str, str]:
     """Parse filter arguments from command line."""
-    filters: Dict[str, str] = {}
+    filters: dict[str, str] = {}
     if not arg:
         return filters
 
@@ -138,7 +138,7 @@ def parse_filters(arg: str) -> Dict[str, str]:
     return filters
 
 
-def extract_url_parameters(url: str) -> Tuple[str, Dict[str, str]]:
+def extract_url_parameters(url: str) -> tuple[str, dict[str, str]]:
     """Extract base URL and parameters from a URL."""
     base_url = url
     url_params = {}
@@ -164,12 +164,12 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
         console.print(Panel(content, title=title, border_style=border_style))
 
 
-def extract_endpoints(logs_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Extract endpoint information from logs data, grouped by the 'name' field."""
-    endpoints: Dict[str, Dict[str, Any]] = {}
+    endpoints: dict[str, dict[str, Any]] = {}
     console.print('[bold cyan]Extracting endpoints...[/bold cyan]')
 
-    for _filename, data in logs_data.items():
+    for data in logs_data.values():
         # Each file is a single request
         if not isinstance(data, dict):
             continue
@@ -232,7 +232,7 @@ def extract_endpoints(logs_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return endpoints
 
 
-def extract_request_parameters(data: Dict[str, Any]) -> List[Tuple[str, str]]:
+def extract_request_parameters(data: dict[str, Any]) -> list[tuple[str, str]]:
     """Extract all request parameters (URL, headers, body) from a request."""
     parameters = []
 
@@ -269,7 +269,7 @@ def extract_request_parameters(data: Dict[str, Any]) -> List[Tuple[str, str]]:
     return parameters
 
 
-def extract_request_info(data: Dict[str, Any]) -> List[str]:
+def extract_request_info(data: dict[str, Any]) -> list[str]:
     """Extract request information from data."""
     request_info = []
 
@@ -309,7 +309,7 @@ def extract_request_info(data: Dict[str, Any]) -> List[str]:
     return request_info
 
 
-def extract_response_info(data: Dict[str, Any]) -> List[str]:
+def extract_response_info(data: dict[str, Any]) -> list[str]:
     """Extract response information from data."""
     response_info = []
 

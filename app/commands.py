@@ -230,9 +230,8 @@ class LogShell(cmd.Cmd):
         """Generate IDs for named groups (A, B, C, ..., Z, AA, AB, ...)."""
         group_ids = {}
         alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        current_id = 0
 
-        for name in sorted(self.endpoints.keys()):
+        for current_id, name in enumerate(sorted(self.endpoints.keys())):
             # Generate ID (A, B, C, ..., Z, AA, AB, ...)
             id_str = ''
             temp_id = current_id
@@ -240,7 +239,6 @@ class LogShell(cmd.Cmd):
                 id_str = alphabet[temp_id % 26] + id_str
                 temp_id = temp_id // 26 - 1
             group_ids[name] = id_str
-            current_id += 1
 
         return group_ids
 

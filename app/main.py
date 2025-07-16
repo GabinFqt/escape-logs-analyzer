@@ -15,7 +15,7 @@ def main() -> None:
 def analyze(zip_file: str) -> None:
     """Analyze logs from a zip file."""
     zip_path = Path(zip_file)
-    if not zip_path.suffix == '.zip':
+    if zip_path.suffix != '.zip':
         click.echo('Error: File must be a zip file', err=True)
         return
 
