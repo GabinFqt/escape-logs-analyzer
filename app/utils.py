@@ -165,7 +165,6 @@ def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         full_url = data.get('url', 'unknown')
         endpoint = data.get('name', 'unknown')
 
-
         if endpoint not in endpoints:
             endpoints[endpoint] = {
                 'status_codes': set(),
