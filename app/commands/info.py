@@ -76,7 +76,14 @@ class InfoCommand:
         return file_ids, filter_arg
 
     @staticmethod
-    def _display_file_info(logs_data: LogsData, file_index: dict[int, str], index_file: dict[str, int], file_id: str, filters: dict, show_bodies: bool) -> None:
+    def _display_file_info(
+        logs_data: LogsData,
+        file_index: dict[int, str],
+        index_file: dict[str, int],
+        file_id: str,
+        filters: dict,
+        show_bodies: bool,
+    ) -> None:
         """Display information for a specific file."""
         # Try to parse as number first
         try:

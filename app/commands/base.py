@@ -33,6 +33,7 @@ class LogShell(cmd.Cmd):
                 raw_dict[fn] = data.dict()
 
         from app.utils import extract_endpoints
+
         self.endpoints = extract_endpoints(raw_dict)
 
     def preloop(self) -> None:
@@ -42,32 +43,33 @@ class LogShell(cmd.Cmd):
     def do_count(self, arg: str) -> None:
         """Count the number of JSON files in the logs."""
         from .count import CountCommand
+
         CountCommand.execute(self.logs_data, arg)
 
     def do_list(self, arg: str) -> None:
         """List all requests with their details."""
         from .list import ListCommand
+
         ListCommand.execute(self.logs_data, self.file_index, arg)
 
     def do_summary(self, arg: str) -> None:
         """Show a summary of all endpoints grouped by name."""
         from .summary import SummaryCommand
+
         SummaryCommand.execute(
-            self.logs_data,
-            self.endpoints,
-            arg,
-            self.MAX_ENDPOINT_DISPLAY_LENGTH,
-            self.TRUNCATED_ENDPOINT_LENGTH
+            self.logs_data, self.endpoints, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH
         )
 
     def do_info(self, arg: str) -> None:
         """Show information about specific JSON files."""
         from .info import InfoCommand
+
         InfoCommand.execute(self.logs_data, self.file_index, self.index_file, arg)
 
     def do_params(self, arg: str) -> None:
         """Show request parameters for a specific file."""
         from .params import ParamsCommand
+
         ParamsCommand.execute(self.logs_data, self.file_index, self.index_file, arg)
 
     def do_quit(self, _: str) -> bool:

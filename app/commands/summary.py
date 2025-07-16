@@ -12,7 +12,9 @@ class SummaryCommand:
     """Summary command implementation."""
 
     @staticmethod
-    def execute(logs_data: LogsData, endpoints: dict, arg: str, max_endpoint_display_length: int, truncated_endpoint_length: int) -> None:
+    def execute(
+        logs_data: LogsData, endpoints: dict, arg: str, max_endpoint_display_length: int, truncated_endpoint_length: int
+    ) -> None:
         """Show a summary of all endpoints grouped by name.
 
         Usage: summary [full] [filters]
@@ -114,14 +116,18 @@ class SummaryCommand:
             if request_body:
                 try:
                     import json
+
                     body_json = json.loads(request_body)
                     from app.utils import extract_path_from_url
+
                     name = body_json.get('name', extract_path_from_url(data.url))
                 except json.JSONDecodeError:
                     from app.utils import extract_path_from_url
+
                     name = extract_path_from_url(data.url)
             else:
                 from app.utils import extract_path_from_url
+
                 name = extract_path_from_url(data.url)
 
             request_counts[name] = request_counts.get(name, 0) + 1

@@ -27,4 +27,5 @@ def process_zip(zip_path: Path) -> LogsData:
 def start_shell(logs_data: LogsData) -> None:
     """Start the interactive shell with the processed logs data."""
     from app.commands.base import LogShell
+
     LogShell(logs_data).cmdloop()
