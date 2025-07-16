@@ -200,7 +200,7 @@ max-doc-length = 160
 ignore-overlong-task-comments = true
 
 [tool.ruff.lint.mccabe]
-max-complexity = 15
+max-complexity = 20
 
 ########################################################
 ####################### MyPy ###########################

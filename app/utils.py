@@ -6,6 +6,17 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
+from app.models import (
+    EndpointsData,
+    ExchangeData,
+    Filters,
+    LogsData,
+    RequestInfo,
+    RequestParameters,
+    ResponseInfo,
+    UrlParameters,
+)
+
 console = Console()
 
 
@@ -79,6 +90,17 @@ HTTP_STATUS_DESCRIPTIONS = {
 }
 
 
+def extract_path_from_url(url: str) -> str:
+    """Extract the path from a URL, removing the domain and query parameters."""
+    try:
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(url)
+        return parsed_url.path
+    except Exception:
+        return url
+
+
 def get_size_range(sizes: list[int]) -> str:
     """Get a human-readable size range."""
     if not sizes:
@@ -110,11 +132,11 @@ def get_status_description(status_code: str) -> str:
     return HTTP_STATUS_DESCRIPTIONS.get(status_code, 'Unknown')
 
 
-def parse_filters(arg: str) -> dict[str, str]:
+def parse_filters(arg: str) -> Filters:
     """Parse filter arguments from command line."""
-    filters: dict[str, str] = {}
+    filters_dict: dict[str, str] = {}
     if not arg:
-        return filters
+        return Filters()
 
     # Split by spaces but keep quoted strings together
     parts = shlex.split(arg)
@@ -122,12 +144,12 @@ def parse_filters(arg: str) -> dict[str, str]:
     for part in parts:
         if '=' in part:
             key, value = part.split('=', 1)
-            filters[key] = value
+            filters_dict[key] = value
 
-    return filters
+    return Filters.from_dict(filters_dict)
 
 
-def extract_url_parameters(url: str) -> tuple[str, dict[str, str]]:
+def extract_url_parameters(url: str) -> UrlParameters:
     """Extract base URL and parameters from a URL."""
     base_url = url
     url_params = {}
@@ -139,7 +161,7 @@ def extract_url_parameters(url: str) -> tuple[str, dict[str, str]]:
                 key, value = param.split('=', 1)
                 url_params[key] = value
 
-    return base_url, url_params
+    return UrlParameters(base_url=base_url, parameters=url_params)
 
 
 def format_json_content(content: str, title: str, border_style: str = 'green') -> None:
@@ -153,20 +175,18 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
         console.print(Panel(content, title=title, border_style=border_style))
 
 
-def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def extract_endpoints(logs_data: LogsData) -> EndpointsData:
     """Extract endpoint information from logs data, grouped by the 'name' field."""
-    endpoints: dict[str, dict[str, Any]] = {}
+    endpoints_dict: dict[str, dict[str, Any]] = {}
     console.print('[bold cyan]Extracting endpoints...[/bold cyan]')
 
-    for data in logs_data.values():
+    for data in logs_data.data.values():
         # Each file is a single request
-        if not isinstance(data, dict):
-            continue
-        full_url = data.get('url', 'unknown')
-        endpoint = data.get('name', 'unknown')
+        full_url = data.url
+        endpoint = data.name or 'unknown'
 
-        if endpoint not in endpoints:
-            endpoints[endpoint] = {
+        if endpoint not in endpoints_dict:
+            endpoints_dict[endpoint] = {
                 'status_codes': set(),
                 'coverage': set(),
                 'response_lengths': [],
@@ -178,138 +198,83 @@ def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
             }
 
         # Extract data from the request
-        status_code = data.get('inferredStatusCode', 'unknown')
-        if status_code is not None:
-            endpoints[endpoint]['status_codes'].add(status_code)
-        else:
-            endpoints[endpoint]['status_codes'].add('unknown')
-        endpoints[endpoint]['coverage'].add(data.get('coverage', 'unknown'))
-        endpoints[endpoint]['response_lengths'].append(len(str(data.get('responseBody', ''))))
-        endpoints[endpoint]['methods'].add(data.get('method', 'unknown'))
-        endpoints[endpoint]['endpoints'].add(endpoint)  # Add the endpoint to the set
+        status_code = data.inferredStatusCode
+        endpoints_dict[endpoint]['status_codes'].add(status_code)
+        endpoints_dict[endpoint]['coverage'].add(data.coverage)
+        endpoints_dict[endpoint]['response_lengths'].append(len(str(data.responseBody)))
+        endpoints_dict[endpoint]['methods'].add(data.method)
+        endpoints_dict[endpoint]['endpoints'].add(endpoint)  # Add the endpoint to the set
 
         # Extract content type from response headers
         content_type = 'unknown'
-        response_headers = data.get('responseHeaders', [])
-        if isinstance(response_headers, list):
-            for header in response_headers:
-                if isinstance(header, dict) and header.get('name', '').lower() == 'content-type':
-                    # Get the first value from the values array
-                    values = header.get('values', [])
-                    if values and len(values) > 0:
-                        content_type = values[0]
-                    break
+        for header in data.responseHeaders:
+            if header.name.lower() == 'content-type' and header.values:
+                content_type = header.values[0]
+                break
 
-        endpoints[endpoint]['content_types'].add(content_type)
+        endpoints_dict[endpoint]['content_types'].add(content_type)
 
         # Add requester
-        endpoints[endpoint]['requesters'].add(data.get('requester', 'unknown'))
+        endpoints_dict[endpoint]['requesters'].add(data.requester)
 
-    return endpoints
+    return EndpointsData.from_dict(endpoints_dict)
 
 
-def extract_request_parameters(data: dict[str, Any]) -> list[tuple[str, str]]:
+def extract_request_parameters(data: ExchangeData) -> RequestParameters:
     """Extract all request parameters (URL, headers, body) from a request."""
-    parameters = []
+    url_params = []
+    headers = []
+    body_params = []
 
     # Get URL parameters
-    url = data.get('url', '')
+    url = data.url
     if '?' in url:
         query_string = url.split('?')[1]
         params = query_string.split('&')
         for param in params:
             if '=' in param:
                 key, value = param.split('=', 1)
-                parameters.append((key, value))
+                url_params.append((key, value))
 
     # Get request headers
-    request_headers = data.get('requestHeaders', [])
-    if isinstance(request_headers, list):
-        for header in request_headers:
-            if isinstance(header, dict):
-                name = header.get('name', '')
-                values = header.get('values', [])
-                if values:
-                    parameters.append((f'Header: {name}', values[0]))
+    for header in data.requestHeaders:
+        if header.values:
+            headers.append((f'Header: {header.name}', header.values[0]))
 
     # Get request body if present
-    request_body = data.get('requestBody', '')
+    request_body = data.requestBody
     if request_body:
         try:
             body_json = json.loads(request_body)
             for key, value in body_json.items():
-                parameters.append((f'Body: {key}', str(value)))
+                body_params.append((f'Body: {key}', str(value)))
         except json.JSONDecodeError:
-            parameters.append(('Body', request_body))
+            body_params.append(('Body', request_body))
 
-    return parameters
+    return RequestParameters(url_params=url_params, headers=headers, body_params=body_params)
 
 
-def extract_request_info(data: dict[str, Any]) -> list[str]:
+def extract_request_info(data: ExchangeData) -> RequestInfo:
     """Extract request information from data."""
-    request_info = []
-
-    # Add URL and method
-    url = data.get('url', 'unknown')
-    method = data.get('method', 'unknown')
-
     # Extract URL parameters if present
-    base_url, url_params = extract_url_parameters(url)
+    url_params = extract_url_parameters(data.url)
 
-    # Get requester
-    requester = data.get('requester', 'unknown')
-
-    request_info.append(f'[cyan]URL:[/cyan] {base_url}')
-    # Add URL parameters if present
-    if url_params:
-        request_info.append('\n[bold cyan]URL Parameters:[/bold cyan]')
-        for key, value in url_params.items():
-            request_info.append(f'  [yellow]{key}:[/yellow] {value}')
-
-    request_info.append('')  # Add a blank line for spacing
-
-    request_info.append(f'[cyan]Method:[/cyan] {method} ')
-    request_info.append(f'[cyan]Requester:[/cyan] {requester} ')
-
-    # Add request headers
-    request_headers = data.get('requestHeaders', [])
-    if request_headers:
-        request_info.append('\n[bold cyan]Request Headers:[/bold cyan]')
-        for header in request_headers:
-            if isinstance(header, dict):
-                name = header.get('name', '')
-                values = header.get('values', [])
-                if values:
-                    request_info.append(f'  [yellow]{name}:[/yellow] {values[0]}')
-
-    return request_info
+    return RequestInfo(
+        url=data.url,
+        method=data.method,
+        requester=data.requester,
+        url_parameters=url_params,
+        headers=data.requestHeaders,
+    )
 
 
-def extract_response_info(data: dict[str, Any]) -> list[str]:
+def extract_response_info(data: ExchangeData) -> ResponseInfo:
     """Extract response information from data."""
-    response_info = []
+    status_description = get_status_description(str(data.responseStatusCode))
 
-    # Add status code with description
-    status_code = data.get('responseStatusCode', 'unknown')
-    status_description = get_status_description(str(status_code))
-    response_info.append(f'[cyan]Status Code:[/cyan] {status_code} ({status_description})')
-
-    # Add duration if available
-    duration = data.get('duration', 'unknown')
-    if duration != 'unknown':
-        # Format duration to 3 decimal places
-        formatted_duration = f'{float(duration):.3f}'
-        response_info.append(f'[cyan]Duration:[/cyan] {formatted_duration} s')
-
-    # Add response headers
-    response_headers = data.get('responseHeaders', [])
-    if response_headers:
-        response_info.append('\n[bold cyan]Response Headers:[/bold cyan]')
-        for header in response_headers:
-            if isinstance(header, dict):
-                name = header.get('name', '')
-                values = header.get('values', [])
-                if values:
-                    response_info.append(f'  [yellow]{name}:[/yellow] {values[0]}')
-
-    return response_info
+    return ResponseInfo(
+        status_code=data.responseStatusCode,
+        status_description=status_description,
+        duration=data.duration,
+        headers=data.responseHeaders,
+    )

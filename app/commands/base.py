@@ -4,8 +4,8 @@ import cmd
 
 from rich.panel import Panel
 
-from app.models import LogsData
-from app.utils import console
+from app.models import FileIndex, LogsData
+from app.utils import console, extract_endpoints
 
 
 class LogShell(cmd.Cmd):
@@ -22,19 +22,13 @@ class LogShell(cmd.Cmd):
         console.print('[bold cyan]Welcome to the Escape Scan Debugger CLI![/bold cyan]')
         super().__init__()
         self.logs_data = logs_data
-        self.file_index = {i + 1: filename for i, filename in enumerate(sorted(logs_data.get_all_filenames()))}
-        self.index_file = {filename: i + 1 for i, filename in enumerate(sorted(logs_data.get_all_filenames()))}
+        self.file_index_obj = FileIndex.from_logs_data(logs_data)
+        self.file_index = self.file_index_obj.file_index
+        self.index_file = self.file_index_obj.index_file
 
-        # For endpoints extraction, pass a dict of filename: dict (not model)
-        raw_dict = {}
-        for fn in logs_data.get_all_filenames():
-            data = logs_data.get_exchange_data(fn)
-            if data is not None:
-                raw_dict[fn] = data.dict()
-
-        from app.utils import extract_endpoints
-
-        self.endpoints = extract_endpoints(raw_dict)
+        # Extract endpoints using the new model
+        self.endpoints_data = extract_endpoints(logs_data)
+        self.endpoints = self.endpoints_data.endpoints
 
     def preloop(self) -> None:
         """Called once before the command loop starts."""

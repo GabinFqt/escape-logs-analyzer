@@ -49,7 +49,7 @@ class ParamsCommand:
             return
 
         # Apply filters
-        if not apply_filters(data.dict(), filters):
+        if not apply_filters(data, filters):
             console.print(f"[red]File '{filename}' does not match the specified filters[/red]")
             return
 
@@ -61,10 +61,10 @@ class ParamsCommand:
         table.add_column('Value', style='green')
 
         # Extract all parameters
-        parameters = extract_request_parameters(data.dict())
+        parameters = extract_request_parameters(data)
 
         # Add parameters to table
-        for key, value in parameters:
+        for key, value in parameters.all_parameters():
             table.add_row(key, value)
 
         console.print(table)

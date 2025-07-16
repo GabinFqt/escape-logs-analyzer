@@ -42,14 +42,14 @@ class ListCommand:
             if data is None:
                 continue
 
-            # Apply filters (convert to dict for compatibility)
-            if not apply_filters(data.dict(), filters):
+            # Apply filters
+            if not apply_filters(data, filters):
                 continue
 
             filtered_count += 1
 
             # Extract endpoint from URL
-            endpoint = data.name
+            endpoint = data.name or 'unknown'
 
             # Get method
             method = data.method
@@ -86,7 +86,7 @@ class ListCommand:
             )
 
         console.print(table)
-        if filters:
+        if filters.to_dict():
             console.print(
                 Panel(
                     f'[green]Showing {filtered_count} of {logs_data.count_files()} requests[/green]',

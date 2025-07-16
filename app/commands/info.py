@@ -4,7 +4,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from app.filters import apply_filters
-from app.models import LogsData
+from app.models import Filters, LogsData
 from app.utils import console, extract_request_info, extract_response_info, format_json_content, parse_filters
 
 
@@ -81,7 +81,7 @@ class InfoCommand:
         file_index: dict[int, str],
         index_file: dict[str, int],
         file_id: str,
-        filters: dict,
+        filters: Filters,
         show_bodies: bool,
     ) -> None:
         """Display information for a specific file."""
@@ -106,7 +106,7 @@ class InfoCommand:
             return
 
         # Apply filters
-        if not apply_filters(data.dict(), filters):
+        if not apply_filters(data, filters):
             console.print(f"[red]File '{filename}' does not match the specified filters[/red]")
             return
 
@@ -117,8 +117,25 @@ class InfoCommand:
         console.print(Markdown(markdown_title))
 
         # Display request information
-        request_info = extract_request_info(data.dict())
-        console.print(Panel('\n'.join(request_info), title='Request Details', border_style='green'))
+        request_info = extract_request_info(data)
+        request_info_list = [
+            f'[cyan]URL:[/cyan] {request_info.url}',
+            f'[cyan]Method:[/cyan] {request_info.method}',
+            f'[cyan]Requester:[/cyan] {request_info.requester}',
+        ]
+
+        if request_info.url_parameters and request_info.url_parameters.parameters:
+            request_info_list.append('\n[bold cyan]URL Parameters:[/bold cyan]')
+            for key, value in request_info.url_parameters.parameters.items():
+                request_info_list.append(f'  [yellow]{key}:[/yellow] {value}')
+
+        if request_info.headers:
+            request_info_list.append('\n[bold cyan]Request Headers:[/bold cyan]')
+            for header in request_info.headers:
+                if header.values:
+                    request_info_list.append(f'  [yellow]{header.name}:[/yellow] {header.values[0]}')
+
+        console.print(Panel('\n'.join(request_info_list), title='Request Details', border_style='green'))
 
         # Display request body with syntax highlighting if it's JSON
         request_body = data.requestBody
@@ -126,11 +143,22 @@ class InfoCommand:
             format_json_content(request_body, 'Request Body', 'green')
 
         # Display response information with file size
-        response_info = extract_response_info(data.dict())
+        response_info = extract_response_info(data)
         file_size_bytes = len(str(data.responseBody))
         file_size_kb = file_size_bytes / 1024
-        response_info.append(f'[blue]File Size: {file_size_kb:.2f} KB[/blue]')
-        console.print(Panel('\n'.join(response_info), title='Response Details', border_style='blue'))
+        response_info_list = [
+            f'[cyan]Status Code:[/cyan] {response_info.status_code} ({response_info.status_description})',
+            f'[cyan]Duration:[/cyan] {response_info.duration:.3f} s',
+            f'[blue]File Size: {file_size_kb:.2f} KB[/blue]',
+        ]
+
+        if response_info.headers:
+            response_info_list.append('\n[bold cyan]Response Headers:[/bold cyan]')
+            for header in response_info.headers:
+                if header.values:
+                    response_info_list.append(f'  [yellow]{header.name}:[/yellow] {header.values[0]}')
+
+        console.print(Panel('\n'.join(response_info_list), title='Response Details', border_style='blue'))
 
         # Display response body with syntax highlighting if it's JSON
         response_body = data.responseBody
