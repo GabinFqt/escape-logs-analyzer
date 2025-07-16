@@ -28,7 +28,6 @@ class LogShell(cmd.Cmd):
 
         # Extract endpoints using the new model
         self.endpoints_data = extract_endpoints(logs_data)
-        self.endpoints = self.endpoints_data.endpoints
 
     def preloop(self) -> None:
         """Called once before the command loop starts."""
@@ -51,7 +50,7 @@ class LogShell(cmd.Cmd):
         from .summary import SummaryCommand
 
         SummaryCommand.execute(
-            self.logs_data, self.endpoints, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH
+            self.logs_data, self.endpoints_data, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH
         )
 
     def do_info(self, arg: str) -> None:

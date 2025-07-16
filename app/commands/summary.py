@@ -1,12 +1,10 @@
 """Summary command implementation."""
 
-from typing import Any
-
 from rich.panel import Panel
 from rich.table import Table
 
 from app.filters import apply_filters
-from app.models import Filters, GroupIds, LogsData, RequestCounts
+from app.models import EndpointsData, Filters, GroupIds, LogsData, RequestCounts
 from app.utils import console, parse_filters
 
 
@@ -16,7 +14,7 @@ class SummaryCommand:
     @staticmethod
     def execute(
         logs_data: LogsData,
-        endpoints: dict[str, Any],
+        endpoints_data: EndpointsData,
         arg: str,
         max_endpoint_display_length: int,
         truncated_endpoint_length: int,
@@ -50,12 +48,12 @@ class SummaryCommand:
         table.add_column('Request Count', justify='right', style='yellow')
 
         # Generate IDs for named groups (A, B, C, ..., Z, AA, AB, ...)
-        group_ids = GroupIds.generate(endpoints)
+        group_ids = GroupIds.generate(endpoints_data)
 
         # Count requests per named group with filters
         request_counts_obj = SummaryCommand._count_requests_by_group(logs_data, filters)
 
-        for name, data in sorted(endpoints.items()):
+        for name, data in sorted(endpoints_data.endpoints.items()):
             # Skip groups with no matching requests after filtering
             if filters.to_dict() and name not in request_counts_obj.filtered_groups:
                 continue
@@ -80,7 +78,7 @@ class SummaryCommand:
         if filters.to_dict():
             console.print(
                 Panel(
-                    f'[green]Showing summary for {len(request_counts_obj.filtered_groups)} of {len(endpoints)} named groups[/green]',
+                    f'[green]Showing summary for {len(request_counts_obj.filtered_groups)} of {endpoints_data.count_endpoints()} named groups[/green]',
                     title='Filtered Results',
                 ),
             )

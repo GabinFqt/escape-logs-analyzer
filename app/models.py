@@ -142,6 +142,22 @@ class EndpointsData(BaseModel):
             processed_endpoints[name] = EndpointInfo(**data)
         return cls(endpoints=processed_endpoints)
 
+    def get_endpoint_info(self, name: str) -> EndpointInfo | None:
+        """Get endpoint info for a specific name."""
+        return self.endpoints.get(name)
+
+    def get_all_endpoint_names(self) -> list[str]:
+        """Get all endpoint names."""
+        return list(self.endpoints.keys())
+
+    def count_endpoints(self) -> int:
+        """Count the number of endpoints."""
+        return len(self.endpoints)
+
+    def to_dict(self) -> dict[str, dict[str, Any]]:
+        """Convert to dictionary for backward compatibility."""
+        return {name: info.model_dump() for name, info in self.endpoints.items()}
+
 
 class UrlParameters(BaseModel):
     """Model for URL parameters."""
@@ -202,12 +218,12 @@ class GroupIds(BaseModel):
     group_ids: dict[str, str]
 
     @classmethod
-    def generate(cls, endpoints: dict[str, Any]) -> 'GroupIds':
+    def generate(cls, endpoints: EndpointsData) -> 'GroupIds':
         """Generate group IDs for endpoints."""
         group_ids = {}
         alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-        for current_id, name in enumerate(sorted(endpoints.keys())):
+        for current_id, name in enumerate(sorted(endpoints.get_all_endpoint_names())):
             # Generate ID (A, B, C, ..., Z, AA, AB, ...)
             id_str = ''
             temp_id = current_id
