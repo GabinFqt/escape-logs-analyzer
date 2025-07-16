@@ -167,9 +167,12 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
 def extract_endpoints(logs_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Extract endpoint information from logs data, grouped by the 'name' field."""
     endpoints: Dict[str, Dict[str, Any]] = {}
+    console.print('[bold cyan]Extracting endpoints...[/bold cyan]')
 
     for _filename, data in logs_data.items():
         # Each file is a single request
+        if not isinstance(data, dict):
+            continue
         full_url = data.get('url', 'unknown')
         endpoint = extract_path_from_url(full_url)
 
@@ -179,7 +182,8 @@ def extract_endpoints(logs_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         if request_body:
             try:
                 body_json = json.loads(request_body)
-                name = body_json.get('name', endpoint)
+                if isinstance(body_json, dict):
+                    name = body_json.get('name', endpoint)
             except json.JSONDecodeError:
                 name = endpoint
         else:

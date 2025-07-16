@@ -49,6 +49,7 @@ class LogShell(cmd.Cmd):
     TRUNCATED_ENDPOINT_LENGTH = 47
 
     def __init__(self, logs_data: Dict[str, Any]):
+        console.print('[bold cyan]Welcome to the Escape Scan Debugger CLI![/bold cyan]')
         super().__init__()
         self.logs_data = logs_data
         self.file_index = {i + 1: filename for i, filename in enumerate(sorted(logs_data.keys()))}
