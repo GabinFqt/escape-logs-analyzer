@@ -87,24 +87,7 @@ def _filter_by_requester(data: dict[str, Any], requester_filter: str) -> bool:
 def _filter_by_name(data: dict[str, Any], name_filter: str) -> bool:
     """Filter by endpoint name."""
     # Get the name field from the request body or use endpoint as fallback
-    name = 'unknown'
-    request_body = data.get('requestBody', '')
-    if request_body:
-        try:
-            import json
-
-            body_json = json.loads(request_body)
-            name = body_json.get('name', '')
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # If name is still unknown, try to get it from the URL
-    if name == 'unknown':
-        from app.utils import extract_path_from_url
-
-        name = extract_path_from_url(data.get('url', 'unknown'))
-
-    return name_filter in name
+    return name_filter in data.get('name', '')
 
 
 def apply_filters(data: dict[str, Any], filters: dict[str, str]) -> bool:

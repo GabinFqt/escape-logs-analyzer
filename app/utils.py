@@ -79,17 +79,6 @@ HTTP_STATUS_DESCRIPTIONS = {
 }
 
 
-def extract_path_from_url(url: str) -> str:
-    """Extract the path from a URL, removing the domain and query parameters."""
-    try:
-        from urllib.parse import urlparse
-
-        parsed_url = urlparse(url)
-        return parsed_url.path
-    except Exception:
-        return url
-
-
 def get_size_range(sizes: list[int]) -> str:
     """Get a human-readable size range."""
     if not sizes:
@@ -174,23 +163,11 @@ def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if not isinstance(data, dict):
             continue
         full_url = data.get('url', 'unknown')
-        endpoint = extract_path_from_url(full_url)
+        endpoint = data.get('name', 'unknown')
 
-        # Get the name field from the request body or use endpoint as fallback
-        name = 'unknown'
-        request_body = data.get('requestBody', '')
-        if request_body:
-            try:
-                body_json = json.loads(request_body)
-                if isinstance(body_json, dict):
-                    name = body_json.get('name', endpoint)
-            except json.JSONDecodeError:
-                name = endpoint
-        else:
-            name = endpoint
 
-        if name not in endpoints:
-            endpoints[name] = {
+        if endpoint not in endpoints:
+            endpoints[endpoint] = {
                 'status_codes': set(),
                 'coverage': set(),
                 'response_lengths': [],
@@ -204,13 +181,13 @@ def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         # Extract data from the request
         status_code = data.get('inferredStatusCode', 'unknown')
         if status_code is not None:
-            endpoints[name]['status_codes'].add(status_code)
+            endpoints[endpoint]['status_codes'].add(status_code)
         else:
-            endpoints[name]['status_codes'].add('unknown')
-        endpoints[name]['coverage'].add(data.get('coverage', 'unknown'))
-        endpoints[name]['response_lengths'].append(len(str(data.get('responseBody', ''))))
-        endpoints[name]['methods'].add(data.get('method', 'unknown'))
-        endpoints[name]['endpoints'].add(endpoint)  # Add the endpoint to the set
+            endpoints[endpoint]['status_codes'].add('unknown')
+        endpoints[endpoint]['coverage'].add(data.get('coverage', 'unknown'))
+        endpoints[endpoint]['response_lengths'].append(len(str(data.get('responseBody', ''))))
+        endpoints[endpoint]['methods'].add(data.get('method', 'unknown'))
+        endpoints[endpoint]['endpoints'].add(endpoint)  # Add the endpoint to the set
 
         # Extract content type from response headers
         content_type = 'unknown'
@@ -224,10 +201,10 @@ def extract_endpoints(logs_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
                         content_type = values[0]
                     break
 
-        endpoints[name]['content_types'].add(content_type)
+        endpoints[endpoint]['content_types'].add(content_type)
 
         # Add requester
-        endpoints[name]['requesters'].add(data.get('requester', 'unknown'))
+        endpoints[endpoint]['requesters'].add(data.get('requester', 'unknown'))
 
     return endpoints
 

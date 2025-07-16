@@ -9,7 +9,6 @@ from app.utils import (
     bytes_to_kb,
     clean_content_type,
     console,
-    extract_path_from_url,
     parse_filters,
 )
 
@@ -50,7 +49,7 @@ class ListCommand:
             filtered_count += 1
 
             # Extract endpoint from URL
-            endpoint = extract_path_from_url(data.url)
+            endpoint = data.name
 
             # Get method
             method = data.method
