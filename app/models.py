@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Header(BaseModel):
@@ -114,14 +114,14 @@ class Filters(BaseModel):
 class EndpointInfo(BaseModel):
     """Model for endpoint information."""
 
-    status_codes: set[int]
-    coverage: set[str]
-    response_lengths: list[int]
-    content_types: set[str]
-    requesters: set[str]
-    methods: set[str]
+    status_codes: set[int] = Field(default_factory=set)
+    coverage: set[str] = Field(default_factory=set)
+    response_lengths: list[int] = Field(default_factory=list)
+    content_types: set[str] = Field(default_factory=set)
+    requesters: set[str] = Field(default_factory=set)
+    methods: set[str] = Field(default_factory=set)
     full_url: str
-    endpoints: set[str]
+    endpoints: set[str] = Field(default_factory=set)
 
     class Config:
         """Pydantic configuration."""

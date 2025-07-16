@@ -1,12 +1,12 @@
 import json
 import shlex
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
 from app.models import (
+    EndpointInfo,
     EndpointsData,
     ExchangeData,
     Filters,
@@ -177,7 +177,7 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
 
 def extract_endpoints(logs_data: LogsData) -> EndpointsData:
     """Extract endpoint information from logs data, grouped by the 'name' field."""
-    endpoints_dict: dict[str, dict[str, Any]] = {}
+    endpoints_dict: dict[str, EndpointInfo] = {}
     console.print('[bold cyan]Extracting endpoints...[/bold cyan]')
 
     for data in logs_data.data.values():
@@ -186,24 +186,15 @@ def extract_endpoints(logs_data: LogsData) -> EndpointsData:
         endpoint = data.name or 'unknown'
 
         if endpoint not in endpoints_dict:
-            endpoints_dict[endpoint] = {
-                'status_codes': set(),
-                'coverage': set(),
-                'response_lengths': [],
-                'content_types': set(),
-                'requesters': set(),
-                'methods': set(),
-                'full_url': full_url,  # Store the full URL for reference
-                'endpoints': set(),  # Store all endpoints associated with this name
-            }
+            endpoints_dict[endpoint] = EndpointInfo(full_url=full_url)
 
         # Extract data from the request
         status_code = data.inferredStatusCode
-        endpoints_dict[endpoint]['status_codes'].add(status_code)
-        endpoints_dict[endpoint]['coverage'].add(data.coverage)
-        endpoints_dict[endpoint]['response_lengths'].append(len(str(data.responseBody)))
-        endpoints_dict[endpoint]['methods'].add(data.method)
-        endpoints_dict[endpoint]['endpoints'].add(endpoint)  # Add the endpoint to the set
+        endpoints_dict[endpoint].status_codes.add(status_code)
+        endpoints_dict[endpoint].coverage.add(data.coverage)
+        endpoints_dict[endpoint].response_lengths.append(len(str(data.responseBody)))
+        endpoints_dict[endpoint].methods.add(data.method)
+        endpoints_dict[endpoint].endpoints.add(endpoint)  # Add the endpoint to the set
 
         # Extract content type from response headers
         content_type = 'unknown'
@@ -212,12 +203,10 @@ def extract_endpoints(logs_data: LogsData) -> EndpointsData:
                 content_type = header.values[0]
                 break
 
-        endpoints_dict[endpoint]['content_types'].add(content_type)
+        endpoints_dict[endpoint].content_types.add(content_type)
+        endpoints_dict[endpoint].requesters.add(data.requester)
 
-        # Add requester
-        endpoints_dict[endpoint]['requesters'].add(data.requester)
-
-    return EndpointsData.from_dict(endpoints_dict)
+    return EndpointsData(endpoints=endpoints_dict)
 
 
 def extract_request_parameters(data: ExchangeData) -> RequestParameters:
