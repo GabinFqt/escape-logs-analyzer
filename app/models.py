@@ -5,12 +5,14 @@ from pydantic import BaseModel
 
 class Header(BaseModel):
     """Model for HTTP headers."""
+
     name: str
     values: list[str]
 
 
 class InferredScalar(BaseModel):
     """Model for inferred scalar values."""
+
     kind: str
     name: str
     confidence: float
@@ -48,6 +50,7 @@ class ExchangeData(BaseModel):
 
     class Config:
         """Pydantic configuration."""
+
         # Allow extra fields that might be present in the data
         extra = 'allow'
         # Use field names as they appear in the JSON
