@@ -2,13 +2,14 @@ import cmd
 import json
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
 from app.filters import apply_filters
+from app.models import LogsData
 from app.utils import (
     bytes_to_kb,
     clean_content_type,
@@ -23,19 +24,18 @@ from app.utils import (
 )
 
 
-def process_zip(zip_path: Path) -> Dict[str, Any]:
-    """Process zip file and return logs data."""
-    logs_data: Dict[str, Any] = {}
+def process_zip(zip_path: Path) -> LogsData:
+    """Process zip file and return logs data as LogsData model."""
+    logs_data = {}
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         for file_name in zip_ref.namelist():
             if file_name.endswith('.json'):
                 with zip_ref.open(file_name) as f:
                     logs_data[file_name] = json.load(f)
-
     console.print(
         Panel(f'[green]Successfully decompressed {len(logs_data)} JSON files[/green]', title='Zip Processing'),
     )
-    return logs_data
+    return LogsData.from_dict(logs_data)
 
 
 class LogShell(cmd.Cmd):
@@ -48,13 +48,19 @@ class LogShell(cmd.Cmd):
     MAX_ENDPOINT_DISPLAY_LENGTH = 50
     TRUNCATED_ENDPOINT_LENGTH = 47
 
-    def __init__(self, logs_data: Dict[str, Any]):
+    def __init__(self, logs_data: LogsData):
         console.print('[bold cyan]Welcome to the Escape Scan Debugger CLI![/bold cyan]')
         super().__init__()
         self.logs_data = logs_data
-        self.file_index = {i + 1: filename for i, filename in enumerate(sorted(logs_data.keys()))}
-        self.index_file = {filename: i + 1 for i, filename in enumerate(sorted(logs_data.keys()))}
-        self.endpoints = extract_endpoints(logs_data)
+        self.file_index = {i + 1: filename for i, filename in enumerate(sorted(logs_data.get_all_filenames()))}
+        self.index_file = {filename: i + 1 for i, filename in enumerate(sorted(logs_data.get_all_filenames()))}
+        # For endpoints extraction, pass a dict of filename: dict (not model)
+        raw_dict = {}
+        for fn in logs_data.get_all_filenames():
+            data = logs_data.get_exchange_data(fn)
+            if data is not None:
+                raw_dict[fn] = data.dict()
+        self.endpoints = extract_endpoints(raw_dict)
 
     def preloop(self) -> None:
         """Called once before the command loop starts."""
@@ -68,9 +74,13 @@ class LogShell(cmd.Cmd):
         count method=GET status_code=200
         """
         filters = parse_filters(arg)
-        filtered_count = sum(1 for filename, data in self.logs_data.items() if apply_filters(data, filters))
+        filtered_count = 0
+        for filename in self.logs_data.get_all_filenames():
+            data = self.logs_data.get_exchange_data(filename)
+            if data is not None and apply_filters(data.dict(), filters):
+                filtered_count += 1
 
-        console.print(Panel(f'[blue]Total JSON files: {len(self.logs_data)}[/blue]', title='Count'))
+        console.print(Panel(f'[blue]Total JSON files: {self.logs_data.count_files()}[/blue]', title='Count'))
         if filters:
             console.print(Panel(f'[green]Filtered JSON files: {filtered_count}[/green]', title='Filtered Count'))
 
@@ -95,43 +105,41 @@ class LogShell(cmd.Cmd):
 
         filtered_count = 0
         for num, filename in self.file_index.items():
-            data = self.logs_data[filename]
+            data = self.logs_data.get_exchange_data(filename)
+            if data is None:
+                continue
 
-            # Apply filters
-            if not apply_filters(data, filters):
+            # Apply filters (convert to dict for compatibility)
+            if not apply_filters(data.dict(), filters):
                 continue
 
             filtered_count += 1
 
             # Extract endpoint from URL
-            endpoint = extract_path_from_url(data.get('url', 'unknown'))
+            endpoint = extract_path_from_url(data.url)
 
             # Get method
-            method = data.get('method', 'unknown')
+            method = data.method
 
             # Get status code
-            status_code = data.get('inferredStatusCode', 'unknown')
+            status_code = data.inferredStatusCode
 
             # Get content type from response headers
             content_type = 'unknown'
-            response_headers = data.get('responseHeaders', [])
-            if isinstance(response_headers, list):
-                for header in response_headers:
-                    if isinstance(header, dict) and header.get('name', '').lower() == 'content-type':
-                        values = header.get('values', [])
-                        if values and len(values) > 0:
-                            content_type = clean_content_type(values[0])
-                        break
+            for header in data.responseHeaders:
+                if header.name.lower() == 'content-type' and header.values:
+                    content_type = clean_content_type(header.values[0])
+                    break
 
             # Get response size in KB
-            response_size = len(str(data.get('responseBody', '')))
+            response_size = len(str(data.responseBody))
             response_size_kb = bytes_to_kb(response_size)
 
             # Get requester
-            requester = data.get('requester', 'unknown')
+            requester = data.requester
 
             # Get coverage
-            coverage = data.get('coverage', 'unknown')
+            coverage = data.coverage
 
             table.add_row(
                 str(num),
@@ -148,7 +156,7 @@ class LogShell(cmd.Cmd):
         if filters:
             console.print(
                 Panel(
-                    f'[green]Showing {filtered_count} of {len(self.logs_data)} requests[/green]',
+                    f'[green]Showing {filtered_count} of {self.logs_data.count_files()} requests[/green]',
                     title='Filtered Results',
                 ),
             )
@@ -218,7 +226,7 @@ class LogShell(cmd.Cmd):
                 ),
             )
 
-    def _generate_group_ids(self) -> Dict[str, str]:
+    def _generate_group_ids(self) -> dict[str, str]:
         """Generate IDs for named groups (A, B, C, ..., Z, AA, AB, ...)."""
         group_ids = {}
         alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -236,26 +244,30 @@ class LogShell(cmd.Cmd):
 
         return group_ids
 
-    def _count_requests_by_group(self, filters: Dict[str, Any]) -> Tuple[Dict[str, int], Set[str]]:
+    def _count_requests_by_group(self, filters: dict[str, Any]) -> tuple[dict[str, int], set[str]]:
         """Count requests per named group with filters."""
-        request_counts: Dict[str, int] = {}
+        request_counts: dict[str, int] = {}
         filtered_groups = set()
 
-        for _, data in self.logs_data.items():
-            if not apply_filters(data, filters):
+        for filename in self.logs_data.get_all_filenames():
+            data = self.logs_data.get_exchange_data(filename)
+            if data is None:
+                continue
+
+            if not apply_filters(data.dict(), filters):
                 continue
 
             # Get the name field from the request body or use endpoint as fallback
             name = 'unknown'
-            request_body = data.get('requestBody', '')
+            request_body = data.requestBody
             if request_body:
                 try:
                     body_json = json.loads(request_body)
-                    name = body_json.get('name', extract_path_from_url(data.get('url', 'unknown')))
+                    name = body_json.get('name', extract_path_from_url(data.url))
                 except json.JSONDecodeError:
-                    name = extract_path_from_url(data.get('url', 'unknown'))
+                    name = extract_path_from_url(data.url)
             else:
-                name = extract_path_from_url(data.get('url', 'unknown'))
+                name = extract_path_from_url(data.url)
 
             request_counts[name] = request_counts.get(name, 0) + 1
             filtered_groups.add(name)
@@ -298,7 +310,7 @@ class LogShell(cmd.Cmd):
         for file_id in file_ids:
             self._display_file_info(file_id, filters, show_bodies)
 
-    def _parse_file_ids_and_filters(self, parts: List[str]) -> Tuple[List[str], str]:
+    def _parse_file_ids_and_filters(self, parts: list[str]) -> tuple[list[str], str]:
         """Parse file IDs and filter arguments from command parts."""
         file_ids = []
         filter_arg = ''
@@ -324,7 +336,7 @@ class LogShell(cmd.Cmd):
 
         return file_ids, filter_arg
 
-    def _display_file_info(self, file_id: str, filters: Dict[str, Any], show_bodies: bool) -> None:
+    def _display_file_info(self, file_id: str, filters: dict[str, Any], show_bodies: bool) -> None:
         """Display information for a specific file."""
         # Try to parse as number first
         try:
@@ -337,14 +349,17 @@ class LogShell(cmd.Cmd):
         except ValueError:
             # If not a number, try as filename
             filename = file_id
-            if filename not in self.logs_data:
+            if filename not in self.logs_data.get_all_filenames():
                 console.print(f"[red]File '{filename}' not found[/red]")
                 return
 
-        data = self.logs_data[filename]
+        data = self.logs_data.get_exchange_data(filename)
+        if data is None:
+            console.print(f"[red]File '{filename}' not found or data is missing[/red]")
+            return
 
         # Apply filters
-        if not apply_filters(data, filters):
+        if not apply_filters(data.dict(), filters):
             console.print(f"[red]File '{filename}' does not match the specified filters[/red]")
             return
 
@@ -355,23 +370,23 @@ class LogShell(cmd.Cmd):
         console.print(Markdown(markdown_title))
 
         # Display request information
-        request_info = extract_request_info(data)
+        request_info = extract_request_info(data.dict())
         console.print(Panel('\n'.join(request_info), title='Request Details', border_style='green'))
 
         # Display request body with syntax highlighting if it's JSON
-        request_body = data.get('requestBody', '')
+        request_body = data.requestBody
         if request_body and show_bodies:
             format_json_content(request_body, 'Request Body', 'green')
 
         # Display response information with file size
-        response_info = extract_response_info(data)
-        file_size_bytes = len(str(data))
+        response_info = extract_response_info(data.dict())
+        file_size_bytes = len(str(data.responseBody))
         file_size_kb = file_size_bytes / 1024
         response_info.append(f'[blue]File Size: {file_size_kb:.2f} KB[/blue]')
         console.print(Panel('\n'.join(response_info), title='Response Details', border_style='blue'))
 
         # Display response body with syntax highlighting if it's JSON
-        response_body = data.get('responseBody', '')
+        response_body = data.responseBody
         if response_body and show_bodies:
             format_json_content(response_body, 'Response Body', 'blue')
 
@@ -406,14 +421,17 @@ class LogShell(cmd.Cmd):
         except ValueError:
             # If not a number, try as filename
             filename = file_id
-            if filename not in self.logs_data:
+            if filename not in self.logs_data.get_all_filenames():
                 console.print(f"[red]File '{filename}' not found[/red]")
                 return
 
-        data = self.logs_data[filename]
+        data = self.logs_data.get_exchange_data(filename)
+        if data is None:
+            console.print(f"[red]File '{filename}' not found or data is missing[/red]")
+            return
 
         # Apply filters
-        if not apply_filters(data, filters):
+        if not apply_filters(data.dict(), filters):
             console.print(f"[red]File '{filename}' does not match the specified filters[/red]")
             return
 
@@ -425,7 +443,7 @@ class LogShell(cmd.Cmd):
         table.add_column('Value', style='green')
 
         # Extract all parameters
-        parameters = extract_request_parameters(data)
+        parameters = extract_request_parameters(data.dict())
 
         # Add parameters to table
         for key, value in parameters:
@@ -482,6 +500,6 @@ class LogShell(cmd.Cmd):
         console.print("[yellow]Type 'help' for available commands[/yellow]")
 
 
-def start_shell(logs_data: Dict[str, Any]) -> None:
+def start_shell(logs_data: LogsData) -> None:
     """Start the interactive shell with the processed logs data."""
     LogShell(logs_data).cmdloop()
