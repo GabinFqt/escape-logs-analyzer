@@ -74,19 +74,25 @@ def _apply_filters_on_exchange(exchange: Exchange, filters: Filters) -> bool:
         return False
     if filters.status_code and not _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.status_code):
         return False
-    if filters.inferred_status_code and not _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.inferred_status_code):
+    if filters.inferred_status_code and not _apply_filter_with_inversion(
+        _filter_by_status_code, exchange, filters.inferred_status_code
+    ):
         return False
     if filters.coverage and not _apply_filter_with_inversion(_filter_by_coverage, exchange, filters.coverage):
         return False
     if filters.size and not _apply_filter_with_inversion(_filter_by_size, exchange, filters.size):
         return False
-    if filters.content_type and not _apply_filter_with_inversion(_filter_by_content_type, exchange, filters.content_type):
+    if filters.content_type and not _apply_filter_with_inversion(
+        _filter_by_content_type, exchange, filters.content_type
+    ):
         return False
     if filters.requester and not _apply_filter_with_inversion(_filter_by_requester, exchange, filters.requester):
         return False
     if filters.path and not _apply_filter_with_inversion(_filter_by_path, exchange, filters.path):
         return False
-    if filters.in_schema is not None and not _apply_filter_with_inversion(_filter_by_in_schema, exchange, str(filters.in_schema)):
+    if filters.in_schema is not None and not _apply_filter_with_inversion(
+        _filter_by_in_schema, exchange, str(filters.in_schema)
+    ):
         return False
 
     return True
