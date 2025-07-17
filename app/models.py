@@ -144,6 +144,16 @@ class Exchange(BaseModel):
         return path_params
 
     @property
+    def content_type(self) -> str | None:
+        """Get the content type of the response."""
+        for header in self.responseHeaders:
+            if header.name.lower() == 'content-type':
+                if 'application/json' in header.values:
+                    return 'application/json'
+                return ', '.join(header.values)
+        return None
+
+    @property
     def responseBodyJson(self) -> dict | None:
         """Get the body as a JSON object."""
         try:
@@ -227,7 +237,8 @@ class EndpointsInfoData(BaseModel):
         self.data[(exchange.path, exchange.method)].inferred_status_codes.add(exchange.inferredStatusCode)
         self.data[(exchange.path, exchange.method)].coverage.add(exchange.coverage)
         self.data[(exchange.path, exchange.method)].response_lengths.append(len(exchange.responseBody))
-        self.data[(exchange.path, exchange.method)].content_types.add(exchange.responseHeaders[0].values[0])
+        if exchange.content_type:
+            self.data[(exchange.path, exchange.method)].content_types.add(exchange.content_type)
         self.data[(exchange.path, exchange.method)].requesters.add(exchange.requester)
         self.data[(exchange.path, exchange.method)].methods.add(exchange.method)
 

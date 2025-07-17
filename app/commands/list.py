@@ -5,7 +5,7 @@ from rich.table import Table
 
 from app.filters import apply_filters
 from app.models import Filters, LogsData
-from app.utils import bytes_to_kb, clean_content_type, console
+from app.utils import bytes_to_kb, console
 
 
 def list_requests(logs_data: LogsData, arg: str) -> None:
@@ -31,10 +31,6 @@ def list_requests(logs_data: LogsData, arg: str) -> None:
 
     filtered_count = 0
     for exchange in filtered_logs_data.get_all_exchanges():
-        for header in exchange.responseHeaders:
-            if header.name.lower() == 'content-type' and header.values:
-                content_type = clean_content_type(header.values[0])
-                break
 
         # Get response size in KB
         response_size = len(str(exchange.responseBody))
@@ -46,7 +42,7 @@ def list_requests(logs_data: LogsData, arg: str) -> None:
             exchange.method,
             str(exchange.inferredStatusCode),
             exchange.coverage,
-            content_type,
+            exchange.content_type,
             response_size_kb,
             exchange.requester,
         )

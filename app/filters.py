@@ -3,7 +3,6 @@ from collections.abc import Callable
 from http import HTTPMethod
 
 from app.models import Exchange, Filters, LogsData, PathName
-from app.utils import clean_content_type
 
 
 def _filter_by_method(exchange: Exchange, method_filter: HTTPMethod) -> bool:
@@ -38,12 +37,7 @@ def _filter_by_size(exchange: Exchange, size_filter: str) -> bool:
 
 def _filter_by_content_type(exchange: Exchange, content_type_filter: str) -> bool:
     """Filter by content type."""
-
-    for header in exchange.responseHeaders:
-        if header.name.lower() == 'content-type' and header.values:
-            content_type = clean_content_type(header.values[0])
-            break
-    return content_type_filter in content_type
+    return content_type_filter in exchange.content_type if exchange.content_type else False
 
 
 def _filter_by_requester(exchange: Exchange, requester_filter: str) -> bool:

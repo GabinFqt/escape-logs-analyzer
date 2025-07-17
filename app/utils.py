@@ -77,11 +77,6 @@ HTTP_STATUS_DESCRIPTIONS = {
 }
 
 
-def clean_content_type(content_type: str) -> str:
-    """Clean content type by removing charset for application/json."""
-    return 'application/json' if content_type.startswith('application/json') else content_type
-
-
 def bytes_to_kb(bytes_size: int) -> str:
     """Convert bytes to KB with 2 decimal places."""
     return f'{bytes_size / 1024:.2f} KB'
