@@ -28,19 +28,25 @@ def process_zip(zip_path: Path) -> LogsData:
                                 requester=exchange_json['requester'],
                                 inferredStatusCode=exchange_json['inferredStatusCode'],
                                 inferredScalars=[
-                                    InferredScalar(name=scalar['name'], kind=scalar['kind'], confidence=scalar['confidence'])
+                                    InferredScalar(
+                                        name=scalar['name'], kind=scalar['kind'], confidence=scalar['confidence']
+                                    )
                                     for scalar in exchange_json['inferredScalars']
                                 ],
                                 # in_schema=exchange_json['in_schema'],
                                 requestHeaders=[
-                                    ExchangeParameter(name=header['name'], values=header['values'], _in=ParamLocation.HEADER)
+                                    ExchangeParameter(
+                                        name=header['name'], values=header['values'], _in=ParamLocation.HEADER
+                                    )
                                     for header in exchange_json['requestHeaders']
                                 ],
                                 requestBody=exchange_json['requestBody'],
                                 method=HTTPMethod(exchange_json['method'].upper()),
                                 url=exchange_json['url'],
                                 responseHeaders=[
-                                    ExchangeParameter(name=header['name'], values=header['values'], _in=ParamLocation.HEADER)
+                                    ExchangeParameter(
+                                        name=header['name'], values=header['values'], _in=ParamLocation.HEADER
+                                    )
                                     for header in exchange_json['responseHeaders']
                                 ],
                                 responseBody=exchange_json['responseBody'],
