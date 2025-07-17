@@ -21,9 +21,12 @@ def analyze(zip_file: str) -> None:
 
     try:
         logs_data = process_zip(zip_path)
-        start_shell(logs_data)
     except Exception as e:
         click.echo(f'Error processing zip file: {e}', err=True)
+    try:
+        start_shell(logs_data)
+    except Exception as e:
+        click.echo(f'Error starting shell: {e}', err=True)
 
 
 if __name__ == '__main__':
