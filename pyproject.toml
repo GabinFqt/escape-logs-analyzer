@@ -91,6 +91,7 @@ ignore = [
     "N806",
     "N815",
     "N812",
+    "Q000",
 ]
 task-tags = ["TODO"]
 select = [
