@@ -68,9 +68,7 @@ class Filters(BaseModel):
                 if key in filters.model_fields:
                     setattr(filters, key, value)
                 else:
-                    console.print(
-                        f'[bold red]Ignoring invalid filter: {key}[/bold red]. Valid filters are: {filters.model_fields.keys()}'
-                    )
+                    console.print(f'[bold red]Ignoring invalid filter: {key}[/bold red]. Valid filters are: {filters.model_fields.keys()}')
 
         return filters
 
@@ -104,7 +102,7 @@ class Exchange(BaseModel):
     inferredStatusCode: int
 
     inferredScalars: list[InferredScalar]
-    in_schema: bool
+    # in_schema: bool
 
     @property
     def queryParams(self) -> list[ExchangeParameter]:
