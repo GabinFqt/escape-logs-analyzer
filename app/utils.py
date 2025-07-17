@@ -1,11 +1,8 @@
 import json
-import shlex
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
-
-from app.models import EndpointInfo, EndpointsData, ExchangeData, Filters, LogsData
 
 console = Console()
 
@@ -80,14 +77,6 @@ HTTP_STATUS_DESCRIPTIONS = {
 }
 
 
-def get_size_range(sizes: list[int]) -> str:
-    """Get a human-readable size range."""
-    if not sizes:
-        return 'N/A'
-    min_size, max_size = min(sizes), max(sizes)
-    return f'{min_size} bytes' if min_size == max_size else f'{min_size}-{max_size} bytes'
-
-
 def clean_content_type(content_type: str) -> str:
     """Clean content type by removing charset for application/json."""
     return 'application/json' if content_type.startswith('application/json') else content_type
@@ -103,22 +92,6 @@ def get_status_description(status_code: str) -> str:
     return HTTP_STATUS_DESCRIPTIONS.get(status_code, 'Unknown')
 
 
-def parse_filters(arg: str) -> Filters:
-    """Parse filter arguments from command line."""
-    if not arg:
-        return Filters()
-
-    filters_dict: dict[str, str] = {}
-    parts = shlex.split(arg)
-
-    for part in parts:
-        if '=' in part:
-            key, value = part.split('=', 1)
-            filters_dict[key] = value
-
-    return Filters.from_dict(filters_dict)
-
-
 def format_json_content(content: str, title: str, border_style: str = 'green') -> None:
     """Format and display JSON content with syntax highlighting."""
     try:
@@ -130,62 +103,3 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
         console.print(Panel(content, title=title, border_style=border_style))
 
 
-def extract_endpoints(logs_data: LogsData) -> EndpointsData:
-    """Extract endpoint information from logs data, grouped by the 'name' field."""
-    endpoints_dict: dict[str, EndpointInfo] = {}
-    console.print('[bold cyan]Extracting endpoints...[/bold cyan]')
-
-    for data in logs_data.data.values():
-        full_url = data.url
-        endpoint = data.name or 'unknown'
-
-        if endpoint not in endpoints_dict:
-            endpoints_dict[endpoint] = EndpointInfo(full_url=full_url)
-
-        # Extract data from the request
-        endpoints_dict[endpoint].status_codes.add(data.inferredStatusCode)
-        endpoints_dict[endpoint].coverage.add(data.coverage)
-        endpoints_dict[endpoint].response_lengths.append(len(str(data.responseBody)))
-        endpoints_dict[endpoint].methods.add(data.method)
-        endpoints_dict[endpoint].endpoints.add(endpoint)
-
-        # Extract content type from response headers
-        content_type = 'unknown'
-        for header in data.responseHeaders:
-            if header.name.lower() == 'content-type' and header.values:
-                content_type = header.values[0]
-                break
-
-        endpoints_dict[endpoint].content_types.add(content_type)
-        endpoints_dict[endpoint].requesters.add(data.requester)
-
-    return EndpointsData(endpoints=endpoints_dict)
-
-
-def extract_request_parameters(data: ExchangeData) -> list[tuple[str, str]]:
-    """Extract all request parameters (URL, headers, body) from a request."""
-    parameters = []
-
-    # Get URL parameters
-    if '?' in data.url:
-        query_string = data.url.split('?')[1]
-        for param in query_string.split('&'):
-            if '=' in param:
-                key, value = param.split('=', 1)
-                parameters.append((f'URL: {key}', value))
-
-    # Get request headers
-    for header in data.requestHeaders:
-        if header.values:
-            parameters.append((f'Header: {header.name}', header.values[0]))
-
-    # Get request body if present
-    if data.requestBody:
-        try:
-            body_json = json.loads(data.requestBody)
-            for key, value in body_json.items():
-                parameters.append((f'Body: {key}', str(value)))
-        except json.JSONDecodeError:
-            parameters.append(('Body', data.requestBody))
-
-    return parameters

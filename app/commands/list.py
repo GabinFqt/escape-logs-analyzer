@@ -4,18 +4,20 @@ from rich.panel import Panel
 from rich.table import Table
 
 from app.filters import apply_filters
-from app.models import LogsData
-from app.utils import bytes_to_kb, clean_content_type, console, parse_filters
+from app.models import Filters, LogsData
+from app.utils import bytes_to_kb, clean_content_type, console
 
 
-def list_requests(logs_data: LogsData, file_index: dict[int, str], arg: str) -> None:
+def list_requests(logs_data: LogsData, arg: str) -> None:
     """List all requests with their details.
 
     Usage: list [filters]
     Filters can be specified as key=value pairs, e.g.:
     list method=GET status_code=200
     """
-    filters = parse_filters(arg)
+    filters = Filters.from_arg(arg)
+
+    filtered_logs_data = apply_filters(filters, logs_data)
 
     table = Table(title='Request Details', show_header=True, header_style='bold magenta')
     table.add_column('Number', style='cyan', justify='right')
@@ -28,43 +30,32 @@ def list_requests(logs_data: LogsData, file_index: dict[int, str], arg: str) -> 
     table.add_column('Requester', style='magenta')
 
     filtered_count = 0
-    for num, filename in file_index.items():
-        data = logs_data.get_exchange_data(filename)
-        if data is None or not apply_filters(data, filters):
-            continue
-
-        filtered_count += 1
-
-        # Extract endpoint from URL
-        endpoint = data.name or 'unknown'
-
-        # Get content type from response headers
-        content_type = 'unknown'
-        for header in data.responseHeaders:
+    for exchange in filtered_logs_data.get_all_exchanges():
+        for header in exchange.responseHeaders:
             if header.name.lower() == 'content-type' and header.values:
                 content_type = clean_content_type(header.values[0])
                 break
 
         # Get response size in KB
-        response_size = len(str(data.responseBody))
+        response_size = len(str(exchange.responseBody))
         response_size_kb = bytes_to_kb(response_size)
 
         table.add_row(
-            str(num),
-            endpoint,
-            data.method,
-            str(data.inferredStatusCode),
-            data.coverage,
+            str(exchange.exchangeId),
+            exchange.path,
+            exchange.method,
+            str(exchange.inferredStatusCode),
+            exchange.coverage,
             content_type,
             response_size_kb,
-            data.requester,
+            exchange.requester,
         )
 
     console.print(table)
-    if filters.to_dict():
+    if filters.at_least_one_filter():
         console.print(
             Panel(
-                f'[green]Showing {filtered_count} of {logs_data.count_files()} requests[/green]',
+                f'[green]Showing {filtered_count} of {logs_data.count_exchanges()} requests[/green]',
                 title='Filtered Results',
             ),
         )

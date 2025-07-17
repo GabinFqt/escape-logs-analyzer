@@ -1,15 +1,34 @@
 """Pydantic models for exchange data structure."""
 
-from typing import Any
+import enum
+import json
+import shlex
+from http import HTTPMethod
+from typing import NewType
 
 from pydantic import BaseModel, Field
 
+from app.utils import console
 
-class Header(BaseModel):
+PathName = NewType('PathName', str)
+ExchangeId = NewType('ExchangeId', str)
+
+
+class ParamLocation(enum.StrEnum):
+    """Model for parameter location."""
+
+    PATH = 'path'
+    QUERY = 'query'
+    HEADER = 'header'
+    BODY = 'body'
+
+
+class ExchangeParameter(BaseModel):
     """Model for HTTP headers."""
 
     name: str
     values: list[str]
+    _in: ParamLocation
 
 
 class InferredScalar(BaseModel):
@@ -20,23 +39,61 @@ class InferredScalar(BaseModel):
     confidence: float
 
 
-class ExchangeData(BaseModel):
+class Filters(BaseModel):
+    """Model for filter parameters."""
+
+    method: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    status_code: str | None = Field(default=None)
+    inferred_status_code: str | None = Field(default=None)
+    coverage: str | None = Field(default=None)
+    size: str | None = Field(default=None)
+    content_type: str | None = Field(default=None)
+    requester: str | None = Field(default=None)
+    path: PathName | None = Field(default=None)
+
+    def at_least_one_filter(self) -> bool:
+        """Check if at least one filter is set."""
+        return any(getattr(self, field) is not None for field in self.model_fields)
+
+    @staticmethod
+    def from_arg(arg: str) -> 'Filters':
+        """Parse filter arguments from command line."""
+        filters = Filters()
+        parts = shlex.split(arg)
+
+        for part in parts:
+            if '=' in part:
+                key, value = part.split('=', 1)
+                if key in filters.model_fields:
+                    setattr(filters, key, value)
+                else:
+                    console.print(
+                        f'[bold red]Ignoring invalid filter: {key}[/bold red]. Valid filters are: {filters.model_fields.keys()}'
+                    )
+
+        return filters
+
+
+class Exchange(BaseModel):
     """Main model for exchange data structure."""
 
+    exchangeId: ExchangeId
+    path: PathName
+
     # Request information
-    requestHeaders: list[Header]
-    requestBody: str = ''
+    requestHeaders: list[ExchangeParameter]
+    requestBody: str | None
+    method: HTTPMethod
+    url: str
 
     # Response information
-    responseHeaders: list[Header]
+    responseHeaders: list[ExchangeParameter]
     responseBody: str
     responseStatusCode: int
 
     # Metadata
     scanId: str
-    exchangeId: str
-    method: str
-    url: str
     curl: str
     duration: float
 
@@ -46,156 +103,148 @@ class ExchangeData(BaseModel):
     requester: str
     inferredStatusCode: int
 
-    # Optional fields
-    inferredScalars: list[InferredScalar] | None = None
-    name: str | None = None
+    inferredScalars: list[InferredScalar]
+    in_schema: bool
 
-    class Config:
-        """Pydantic configuration."""
+    @property
+    def queryParams(self) -> list[ExchangeParameter]:
+        """Get the parameters in the path."""
+        return [
+            ExchangeParameter(name=param.split('=')[0], values=[param.split('=')[1]], _in=ParamLocation.QUERY)
+            for param in self.url.split('?')[1].split('&')
+            if '=' in param
+        ]
 
-        extra = 'allow'
-        populate_by_name = True
+    @property
+    def pathParams(self) -> list[ExchangeParameter]:
+        """Get the parameters in the path using OpenAPI Spec format."""
+        import re
 
+        # Extract path parameters from the URL using OpenAPI format {paramName}
+        path_params = []
+
+        # Find all path parameters in the URL (e.g., /users/{userId}/posts/{postId})
+        # We need to match the actual values from the URL against the path template
+        url_parts = self.url.split('?')[0].split('/')  # Remove query params
+        path_parts = self.path.split('/')
+
+        # Match URL parts with path template parts
+        min_length = min(len(url_parts), len(path_parts))
+        for i in range(min_length):
+            url_part = url_parts[i]
+            path_part = path_parts[i]
+
+            # Check if this path part is a parameter (contains {paramName})
+            param_match = re.search(r'\{([^}]+)\}', path_part)
+            if param_match:
+                param_name = param_match.group(1)
+                param_value = url_part
+                path_params.append(ExchangeParameter(name=param_name, values=[param_value], _in=ParamLocation.PATH))
+
+        return path_params
+
+    @property
+    def responseBodyJson(self) -> dict | None:
+        """Get the body as a JSON object."""
+        try:
+            return json.loads(self.responseBody)
+        except json.JSONDecodeError:
+            return None
 
 class LogsData(BaseModel):
     """Model for the complete logs data structure."""
 
-    data: dict[str, ExchangeData]
+    data: dict[ExchangeId, Exchange] = Field(default_factory=dict)
 
-    @classmethod
-    def from_dict(cls, data: dict[str, dict]) -> 'LogsData':
-        """Create LogsData from a dictionary of raw JSON data."""
-        processed_data = {}
-        for filename, exchange_data in data.items():
-            processed_data[filename] = ExchangeData(**exchange_data)
-        return cls(data=processed_data)
-
-    def get_exchange_data(self, filename: str) -> ExchangeData | None:
-        """Get exchange data for a specific filename."""
-        return self.data.get(filename)
-
-    def get_all_filenames(self) -> list[str]:
-        """Get all filenames in the logs data."""
-        return list(self.data.keys())
-
-    def count_files(self) -> int:
-        """Count the number of files in the logs data."""
+    def __len__(self) -> int:
+        """Get the number of exchanges in the logs data."""
         return len(self.data)
 
+    def add_exchange(self, exchange: Exchange) -> None:
+        """Add an exchange to the logs data."""
+        self.data[exchange.exchangeId] = exchange
 
-class Filters(BaseModel):
-    """Model for filter parameters."""
+    def get_exchange_by_id(self, exchange_id: ExchangeId) -> Exchange | None:
+        """Get exchange data for a specific exchange ID."""
+        try:
+            return self.data[exchange_id]
+        except KeyError:
+            console.print(f'[bold red]Exchange ID {exchange_id} not found[/bold red]')
+            return None
 
-    method: str | None = None
-    url: str | None = None
-    operation: str | None = None
-    status_code: str | None = None
-    scalar: str | None = None
-    coverage: str | None = None
-    size: str | None = None
-    content_type: str | None = None
-    requester: str | None = None
-    name: str | None = None
+    def get_all_exchange_ids(self) -> set[ExchangeId]:
+        """Get all exchange IDs in the logs data."""
+        return set(self.data.keys())
 
-    @classmethod
-    def from_dict(cls, filters_dict: dict[str, str]) -> 'Filters':
-        """Create Filters from a dictionary."""
-        return cls(**filters_dict)
+    def get_all_exchanges(self) -> list[Exchange]:
+        """Get all exchanges in the logs data."""
+        return list(self.data.values())
 
-    def to_dict(self) -> dict[str, str]:
-        """Convert to dictionary, excluding None values."""
-        return {k: v for k, v in self.model_dump().items() if v is not None}
-
+    def count_exchanges(self) -> int:
+        """Count the number of exchanges in the logs data."""
+        return len(self.data)
 
 class EndpointInfo(BaseModel):
     """Model for endpoint information."""
 
+    path: PathName
+    method: HTTPMethod
+
     status_codes: set[int] = Field(default_factory=set)
+    inferred_status_codes: set[int] = Field(default_factory=set)
     coverage: set[str] = Field(default_factory=set)
     response_lengths: list[int] = Field(default_factory=list)
     content_types: set[str] = Field(default_factory=set)
     requesters: set[str] = Field(default_factory=set)
     methods: set[str] = Field(default_factory=set)
-    full_url: str
-    endpoints: set[str] = Field(default_factory=set)
+    urls: set[str] = Field(default_factory=set)
 
-    class Config:
-        """Pydantic configuration."""
+    exchange_ids: set[ExchangeId] = Field(default_factory=set)
 
-        arbitrary_types_allowed = True
-
-
-class EndpointsData(BaseModel):
-    """Model for endpoints data structure."""
-
-    endpoints: dict[str, EndpointInfo]
-
-    @classmethod
-    def from_dict(cls, endpoints_dict: dict[str, dict[str, Any]]) -> 'EndpointsData':
-        """Create EndpointsData from a dictionary."""
-        processed_endpoints = {}
-        for name, data in endpoints_dict.items():
-            processed_endpoints[name] = EndpointInfo(**data)
-        return cls(endpoints=processed_endpoints)
-
-    def get_endpoint_info(self, name: str) -> EndpointInfo | None:
-        """Get endpoint info for a specific name."""
-        return self.endpoints.get(name)
-
-    def get_all_endpoint_names(self) -> list[str]:
-        """Get all endpoint names."""
-        return list(self.endpoints.keys())
-
-    def count_endpoints(self) -> int:
-        """Count the number of endpoints."""
-        return len(self.endpoints)
+    @property
+    def count_exchanges(self) -> int:
+        """Count the number of exchanges in the endpoint information."""
+        return len(self.exchange_ids)
 
 
-class FileIndex(BaseModel):
-    """Model for file indexing."""
+class EndpointsInfoData(BaseModel):
+    """Model for endpoint information data."""
 
-    file_index: dict[int, str]
-    index_file: dict[str, int]
+    data: dict[tuple[PathName, HTTPMethod], EndpointInfo] = Field(default_factory=dict)
 
-    @classmethod
-    def from_logs_data(cls, logs_data: LogsData) -> 'FileIndex':
-        """Create FileIndex from LogsData."""
-        filenames = sorted(logs_data.get_all_filenames())
-        file_index = {i + 1: filename for i, filename in enumerate(filenames)}
-        index_file = {filename: i + 1 for i, filename in enumerate(filenames)}
-        return cls(file_index=file_index, index_file=index_file)
+    def __len__(self) -> int:
+        """Get the number of endpoint information in the data."""
+        return len(self.data)
 
+    def add_exchange(self, exchange: Exchange) -> None:
+        """Add an exchange to the endpoint information data."""
+        if (exchange.path, exchange.method) not in self.data:
+            self.data[(exchange.path, exchange.method)] = EndpointInfo(path=exchange.path, method=exchange.method)
+        self.data[(exchange.path, exchange.method)].exchange_ids.add(exchange.exchangeId)
+        self.data[(exchange.path, exchange.method)].status_codes.add(exchange.responseStatusCode)
+        self.data[(exchange.path, exchange.method)].inferred_status_codes.add(exchange.inferredStatusCode)
+        self.data[(exchange.path, exchange.method)].coverage.add(exchange.coverage)
+        self.data[(exchange.path, exchange.method)].response_lengths.append(len(exchange.responseBody))
+        self.data[(exchange.path, exchange.method)].content_types.add(exchange.responseHeaders[0].values[0])
+        self.data[(exchange.path, exchange.method)].requesters.add(exchange.requester)
+        self.data[(exchange.path, exchange.method)].methods.add(exchange.method)
 
-class GroupIds(BaseModel):
-    """Model for group IDs."""
+    def get_endpoint_info(self, path: PathName, method: HTTPMethod) -> EndpointInfo | None:
+        """Get endpoint information for a specific path and method."""
+        return self.data.get((path, method))
 
-    group_ids: dict[str, str]
+    def get_all_endpoints(self) -> list[EndpointInfo]:
+        """Get all endpoint information in the data."""
+        return list(self.data.values())
+
+    def get_all_endpoint_paths(self) -> set[tuple[PathName, HTTPMethod]]:
+        """Get all endpoint paths in the data."""
+        return set(self.data.keys())
 
     @classmethod
-    def generate(cls, endpoints: EndpointsData) -> 'GroupIds':
-        """Generate group IDs for endpoints."""
-        group_ids = {}
-        alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
-        for current_id, name in enumerate(sorted(endpoints.get_all_endpoint_names())):
-            # Generate ID (A, B, C, ..., Z, AA, AB, ...)
-            id_str = ''
-            temp_id = current_id
-            while temp_id >= 0:
-                id_str = alphabet[temp_id % 26] + id_str
-                temp_id = temp_id // 26 - 1
-            group_ids[name] = id_str
-
-        return cls(group_ids=group_ids)
-
-
-class RequestCounts(BaseModel):
-    """Model for request counts."""
-
-    request_counts: dict[str, int]
-    filtered_groups: set[str]
-
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
+    def from_logs_data(cls, logs_data: 'LogsData') -> 'EndpointsInfoData':
+        """Create EndpointsInfoData from LogsData."""
+        endpoints_info_data = cls()
+        for exchange in logs_data.get_all_exchanges():
+                endpoints_info_data.add_exchange(exchange)
+        return endpoints_info_data

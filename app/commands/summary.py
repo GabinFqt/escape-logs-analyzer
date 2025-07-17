@@ -4,13 +4,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from app.filters import apply_filters
-from app.models import EndpointsData, Filters, GroupIds, LogsData, RequestCounts
-from app.utils import console, parse_filters
+from app.models import EndpointsInfoData, Filters, LogsData
+from app.utils import console
 
 
 def show_summary(
     logs_data: LogsData,
-    endpoints_data: EndpointsData,
     arg: str,
     max_endpoint_display_length: int,
     truncated_endpoint_length: int,
@@ -33,7 +32,10 @@ def show_summary(
     else:
         filter_arg = arg
 
-    filters = parse_filters(filter_arg)
+    filters = Filters.from_arg(filter_arg)
+
+    filtered_logs_data = apply_filters(filters, logs_data)
+    endpoints_info_data = EndpointsInfoData.from_logs_data(filtered_logs_data)
 
     table = Table(title='Named Groups Summary', show_header=True, header_style='bold magenta')
     table.add_column('ID', style='bold white', justify='center')
@@ -41,59 +43,35 @@ def show_summary(
     table.add_column('Endpoints', style='green')
     table.add_column('Methods', justify='center', style='blue')
     table.add_column('Status Codes', justify='center')
+    table.add_column('Coverage', justify='center')
+    table.add_column('Inferred Status Codes', justify='center')
     table.add_column('Request Count', justify='right', style='yellow')
 
-    # Generate IDs for named groups (A, B, C, ..., Z, AA, AB, ...)
-    group_ids = GroupIds.generate(endpoints_data)
-
-    # Count requests per named group with filters
-    request_counts_obj = _count_requests_by_group(logs_data, filters)
-
-    for name, data in sorted(endpoints_data.endpoints.items()):
-        # Skip groups with no matching requests after filtering
-        if filters.to_dict() and name not in request_counts_obj.filtered_groups:
-            continue
-
+    for endpoint_info in endpoints_info_data.get_all_endpoints():
         # Format endpoints for display
-        endpoints_display = ', '.join(sorted(data.endpoints))
+        endpoints_display = ', '.join(sorted(endpoint_info.path))
         if not show_full_urls and len(endpoints_display) > max_endpoint_display_length:
             endpoints_display = endpoints_display[:truncated_endpoint_length] + '...'
 
         table.add_row(
-            group_ids.group_ids[name],
-            name,
+            endpoint_info.path,
+            endpoint_info.method,
             endpoints_display,
-            ', '.join(sorted(data.methods)),
-            ', '.join(sorted(str(code) for code in data.status_codes)),
-            str(request_counts_obj.request_counts.get(name, 0)),
+            ', '.join(sorted(endpoint_info.methods)),
+            ', '.join(sorted(str(code) for code in endpoint_info.status_codes)),
+            ', '.join(sorted(str(code) for code in endpoint_info.inferred_status_codes)),
+            str(endpoint_info.count_exchanges),
         )
 
     console.print(table)
     if not show_full_urls:
         console.print("[yellow]Tip: Use 'summary full' to see complete endpoint URLs[/yellow]")
-    if filters.to_dict():
+
+    if filters.at_least_one_filter():
+        unfiltered_endpoints_info_data = EndpointsInfoData.from_logs_data(logs_data)
         console.print(
             Panel(
-                f'[green]Showing summary for {len(request_counts_obj.filtered_groups)} of {endpoints_data.count_endpoints()} named groups[/green]',
+                f'[green]Showing summary for {len(endpoints_info_data)} of {len(unfiltered_endpoints_info_data)} named[/green]',
                 title='Filtered Results',
             ),
         )
-
-
-def _count_requests_by_group(logs_data: LogsData, filters: Filters) -> RequestCounts:
-    """Count requests per named group with filters."""
-    request_counts: dict[str, int] = {}
-    filtered_groups = set()
-
-    for filename in logs_data.get_all_filenames():
-        data = logs_data.get_exchange_data(filename)
-        if data is None or not apply_filters(data, filters):
-            continue
-
-        # Get the name field from the request body or use endpoint as fallback
-        name = data.name or 'unknown'
-
-        request_counts[name] = request_counts.get(name, 0) + 1
-        filtered_groups.add(name)
-
-    return RequestCounts(request_counts=request_counts, filtered_groups=filtered_groups)
