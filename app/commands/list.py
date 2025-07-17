@@ -31,7 +31,6 @@ def list_requests(logs_data: LogsData, arg: str) -> None:
 
     filtered_count = 0
     for exchange in filtered_logs_data.get_all_exchanges():
-
         # Get response size in KB
         response_size = len(str(exchange.responseBody))
         response_size_kb = bytes_to_kb(response_size)
