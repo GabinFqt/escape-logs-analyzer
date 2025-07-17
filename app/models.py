@@ -248,7 +248,7 @@ class EndpointsInfoData(BaseModel):
 
     def get_all_endpoints(self) -> list[EndpointInfo]:
         """Get all endpoint information in the data."""
-        return list(self.data.values())
+        return sorted(self.data.values(), key=lambda x: (x.path, x.method))
 
     def get_all_endpoint_paths(self) -> set[tuple[PathName, HTTPMethod]]:
         """Get all endpoint paths in the data."""
