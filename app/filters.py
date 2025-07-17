@@ -50,6 +50,11 @@ def _filter_by_path(exchange: Exchange, path_filter: PathName) -> bool:
     return exchange.path == path_filter
 
 
+def _filter_by_in_schema(exchange: Exchange, in_schema_filter: bool) -> bool:
+    """Filter by in schema."""
+    return exchange.in_schema == bool(in_schema_filter)
+
+
 def _apply_filters_on_exchange(exchange: Exchange, filters: Filters) -> bool:
     """Apply filters to a log entry and return True if it matches all filters."""
 
@@ -63,24 +68,26 @@ def _apply_filters_on_exchange(exchange: Exchange, filters: Filters) -> bool:
         result = filter_func(data, actual_value)
         return not result if is_inverted else result
 
-    if filters.method:
-        return _apply_filter_with_inversion(_filter_by_method, exchange, filters.method)
-    if filters.url:
-        return _apply_filter_with_inversion(_filter_by_url, exchange, filters.url)
-    if filters.status_code:
-        return _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.status_code)
-    if filters.inferred_status_code:
-        return _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.inferred_status_code)
-    if filters.coverage:
-        return _apply_filter_with_inversion(_filter_by_coverage, exchange, filters.coverage)
-    if filters.size:
-        return _apply_filter_with_inversion(_filter_by_size, exchange, filters.size)
-    if filters.content_type:
-        return _apply_filter_with_inversion(_filter_by_content_type, exchange, filters.content_type)
-    if filters.requester:
-        return _apply_filter_with_inversion(_filter_by_requester, exchange, filters.requester)
-    if filters.path:
-        return _apply_filter_with_inversion(_filter_by_path, exchange, filters.path)
+    if filters.method and not _apply_filter_with_inversion(_filter_by_method, exchange, filters.method):
+        return False
+    if filters.url and not _apply_filter_with_inversion(_filter_by_url, exchange, filters.url):
+        return False
+    if filters.status_code and not _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.status_code):
+        return False
+    if filters.inferred_status_code and not _apply_filter_with_inversion(_filter_by_status_code, exchange, filters.inferred_status_code):
+        return False
+    if filters.coverage and not _apply_filter_with_inversion(_filter_by_coverage, exchange, filters.coverage):
+        return False
+    if filters.size and not _apply_filter_with_inversion(_filter_by_size, exchange, filters.size):
+        return False
+    if filters.content_type and not _apply_filter_with_inversion(_filter_by_content_type, exchange, filters.content_type):
+        return False
+    if filters.requester and not _apply_filter_with_inversion(_filter_by_requester, exchange, filters.requester):
+        return False
+    if filters.path and not _apply_filter_with_inversion(_filter_by_path, exchange, filters.path):
+        return False
+    if filters.in_schema is not None and not _apply_filter_with_inversion(_filter_by_in_schema, exchange, str(filters.in_schema)):
+        return False
 
     return True
 

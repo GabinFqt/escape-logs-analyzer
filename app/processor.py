@@ -33,7 +33,7 @@ def process_zip(zip_path: Path) -> LogsData:
                                     )
                                     for scalar in exchange_json['inferredScalars']
                                 ],
-                                # in_schema=exchange_json['in_schema'],
+                                in_schema=exchange_json['in_schema'],
                                 requestHeaders=[
                                     ExchangeParameter(
                                         name=header['name'], values=header['values'], _in=ParamLocation.HEADER

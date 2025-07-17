@@ -39,7 +39,7 @@ def show_summary(
 
     table = Table(title='Named Groups Summary', show_header=True, header_style='bold magenta')
     table.add_column('Path', style='cyan')
-    table.add_column('Method', style='green')
+    table.add_column('Method')
     table.add_column('Status', justify='center')
     table.add_column('Infered Status', justify='center')
     table.add_column('Coverage', justify='center')
@@ -69,7 +69,7 @@ def show_summary(
         unfiltered_endpoints_info_data = EndpointsInfoData.from_logs_data(logs_data)
         console.print(
             Panel(
-                f'[green]Showing summary for {len(endpoints_info_data)} of {len(unfiltered_endpoints_info_data)} named[/green]',
+                f'[green]Showing summary for {len(endpoints_info_data)} of {len(unfiltered_endpoints_info_data)} endpoints[/green]',
                 title='Filtered Results',
             ),
         )

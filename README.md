@@ -17,10 +17,7 @@ make install
 
 ```bash
 # Start the analyzer with a specific log file
-make run file=your_log_file.zip
-
-# Or directly with Python
-python -m app.main your_log_file.zip
+app-cli analyzse file=your_log_file.zip
 ```
 
 ## Available Commands
@@ -29,6 +26,7 @@ python -m app.main your_log_file.zip
 - `info <number/filename> [filters] [--no-body]`: Show information about a specific file
   - You can display multiple files: `info 1 2 3 4`
   - Use `--no-body` to hide request and response bodies
+- `summary [filters]`: Show the summary per tested endpoints
 - `help`: Show this help message
 - `quit` or `q`: Exit the shell
 
@@ -43,8 +41,9 @@ Filters can be specified as key=value pairs:
 - `size=100-1000`: Filter by response size range
 - `url=api/users`: Filter by URL pattern
 - `operation=login`: Filter by operation name
-- `coverage=covered`: Filter by coverage status
+- `coverage=OK`: Filter by coverage status
 - `endpoint=/users`: Filter by endpoint name
+- `in_schema=True`: Only keep the endpoints in the schema for Happy Flow Validation
 
 You can invert any filter by adding a `!` prefix:
 

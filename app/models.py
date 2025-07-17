@@ -51,6 +51,7 @@ class Filters(BaseModel):
     content_type: str | None = Field(default=None)
     requester: str | None = Field(default=None)
     path: PathName | None = Field(default=None)
+    in_schema: bool | None = Field(default=None)
 
     def at_least_one_filter(self) -> bool:
         """Check if at least one filter is set."""
@@ -104,7 +105,7 @@ class Exchange(BaseModel):
     inferredStatusCode: int
 
     inferredScalars: list[InferredScalar]
-    # in_schema: bool
+    in_schema: bool
 
     @property
     def queryParams(self) -> list[ExchangeParameter]:
