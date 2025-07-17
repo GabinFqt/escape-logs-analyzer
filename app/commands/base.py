@@ -4,13 +4,12 @@ import cmd
 
 from rich.panel import Panel
 
-from app.models import FileIndex, LogsData
-from app.utils import console, extract_endpoints
+from app.models import LogsData
+from app.utils import console
 
-from .count import count_files
+from .count import count_exchanges
 from .info import show_info
 from .list import list_requests
-from .params import show_params
 from .summary import show_summary
 
 
@@ -28,12 +27,6 @@ class LogShell(cmd.Cmd):
         console.print('[bold cyan]Welcome to the Escape Scan Debugger CLI![/bold cyan]')
         super().__init__()
         self.logs_data = logs_data
-        self.file_index_obj = FileIndex.from_logs_data(logs_data)
-        self.file_index = self.file_index_obj.file_index
-        self.index_file = self.file_index_obj.index_file
-
-        # Extract endpoints using the new model
-        self.endpoints_data = extract_endpoints(logs_data)
 
     def preloop(self) -> None:
         """Called once before the command loop starts."""
@@ -41,25 +34,19 @@ class LogShell(cmd.Cmd):
 
     def do_count(self, arg: str) -> None:
         """Count the number of JSON files in the logs."""
-        count_files(self.logs_data, arg)
+        count_exchanges(self.logs_data, arg)
 
     def do_list(self, arg: str) -> None:
         """List all requests with their details."""
-        list_requests(self.logs_data, self.file_index, arg)
+        list_requests(self.logs_data, arg)
 
     def do_summary(self, arg: str) -> None:
         """Show a summary of all endpoints grouped by name."""
-        show_summary(
-            self.logs_data, self.endpoints_data, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH
-        )
+        show_summary(self.logs_data, arg, self.MAX_ENDPOINT_DISPLAY_LENGTH, self.TRUNCATED_ENDPOINT_LENGTH)
 
     def do_info(self, arg: str) -> None:
         """Show information about specific JSON files."""
-        show_info(self.logs_data, self.file_index, self.index_file, arg)
-
-    def do_params(self, arg: str) -> None:
-        """Show request parameters for a specific file."""
-        show_params(self.logs_data, self.file_index, self.index_file, arg)
+        show_info(self.logs_data, arg)
 
     def do_quit(self, _: str) -> bool:
         """Exit the shell."""
