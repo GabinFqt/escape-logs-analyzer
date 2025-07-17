@@ -101,5 +101,3 @@ def format_json_content(content: str, title: str, border_style: str = 'green') -
         console.print(Panel(syntax, title=title, border_style=border_style))
     except json.JSONDecodeError:
         console.print(Panel(content, title=title, border_style=border_style))
-
-

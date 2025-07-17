@@ -55,6 +55,7 @@ def _filter_by_path(exchange: Exchange, path_filter: PathName) -> bool:
     """Filter by endpoint name."""
     return exchange.path == path_filter
 
+
 def _apply_filters_on_exchange(exchange: Exchange, filters: Filters) -> bool:
     """Apply filters to a log entry and return True if it matches all filters."""
 

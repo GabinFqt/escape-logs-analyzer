@@ -151,6 +151,7 @@ class Exchange(BaseModel):
         except json.JSONDecodeError:
             return None
 
+
 class LogsData(BaseModel):
     """Model for the complete logs data structure."""
 
@@ -183,6 +184,7 @@ class LogsData(BaseModel):
     def count_exchanges(self) -> int:
         """Count the number of exchanges in the logs data."""
         return len(self.data)
+
 
 class EndpointInfo(BaseModel):
     """Model for endpoint information."""
@@ -246,5 +248,5 @@ class EndpointsInfoData(BaseModel):
         """Create EndpointsInfoData from LogsData."""
         endpoints_info_data = cls()
         for exchange in logs_data.get_all_exchanges():
-                endpoints_info_data.add_exchange(exchange)
+            endpoints_info_data.add_exchange(exchange)
         return endpoints_info_data
